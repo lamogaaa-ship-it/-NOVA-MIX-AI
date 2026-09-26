@@ -25,6 +25,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 
 namespace nova::hosting
@@ -93,7 +94,10 @@ public:
     using LoadCallback = std::function<void (bool ok, const juce::String& error)>;
     void loadAsync (int slot, const PluginEntry& entry, LoadCallback done);
     bool loadSync (int slot, const juce::PluginDescription& d, const juce::String& entryId, juce::String& error);
-    bool install (int slot, std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& entryId, juce::String& error);
+    // loadedFrom: the description the instance was created from (saved for session recall; an
+    // instance's own getPluginDescription() is not always enough to find it again).
+    bool install (int slot, std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& entryId, juce::String& error,
+                  const juce::PluginDescription* loadedFrom = nullptr);
     void remove (int slot);
     void clear();
     void setBypassed (int slot, bool bypassed);
@@ -116,7 +120,10 @@ public:
     int restoreSnapshot (const RackSnapshot& snap);
     void applyChanges (const std::vector<RackParamChange>& params, const std::vector<RackBypassChange>& bypass);
 
+    // Any thread; off the message thread it returns the copy taken at the last message-thread
+    // save / change (call refreshStateCache() periodically from the message thread).
     juce::ValueTree saveState() const;
+    void refreshStateCache() { if (onMessageThread()) (void) saveState(); }
     // Re-instantiates saved slots (message thread). Plugins that are no longer installed are
     // reported through the returned list and skipped - the rest of the session still loads.
     juce::StringArray restoreState (const juce::ValueTree& state, const PluginCatalog* catalog);
@@ -156,6 +163,11 @@ private:
     std::unique_ptr<juce::AudioPluginFormatManager> formats;
     std::shared_ptr<bool> alive = std::make_shared<bool> (true);
 
+    mutable std::mutex cacheLock;
+    mutable juce::ValueTree stateCache { "HOSTED_RACK" };
+
+    static bool onMessageThread();
+    void prepareAll();
     void prepareSlot (Slot& s);
     void publish (int slot, std::unique_ptr<Slot> s);
     bool waitForAudioToLeave();

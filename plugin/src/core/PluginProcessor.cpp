@@ -69,7 +69,12 @@ NovaAudioProcessor::NovaAudioProcessor()
         const int total = getTotalLatency();
         if (total != getLatencySamples()) setLatencySamples (total);
     };
-    rackWatch.fn = [this] { if (rack.hasActiveSlots()) updateHostedLatency(); };
+    rackWatch.fn = [this]
+    {
+        if (! rack.hasActiveSlots()) return;
+        updateHostedLatency();
+        if (++rackWatchTicks % 4 == 0) rack.refreshStateCache();   // for hosts that save state off the message thread
+    };
     rackWatch.startTimer (500);
 }
 

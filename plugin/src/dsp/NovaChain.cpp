@@ -47,7 +47,7 @@ void NovaChain::process (float* const* ch, int numCh, int n, const ChainSettings
     mix.setTarget (s[P::Mix] * 0.01f);
     if (firstBlock)
     {
-        inGain.snap (inGain.target); outGain.snap (outGain.target); mix.snap (mix.target);
+        inGain.snap (inGain.targetValue()); outGain.snap (outGain.targetValue()); mix.snap (mix.targetValue());
         firstBlock = false;
     }
 
@@ -64,7 +64,7 @@ void NovaChain::process (float* const* ch, int numCh, int n, const ChainSettings
         subCtx.freeRunSample = ctx.freeRunSample + offset;
 
         // input trim (ramped) + capture the aligned dry for the global mix
-        const float g0 = inGain.current, g1 = inGain.next();
+        const float g0 = inGain.value(), g1 = inGain.next();
         const float gStep = (g1 - g0) / (float) len;
         for (int c = 0; c < numCh; ++c)
         {
@@ -97,7 +97,7 @@ void NovaChain::process (float* const* ch, int numCh, int n, const ChainSettings
         limiter.process (sub, numCh, len, s, stats, instant);
 
         // output gain + latency-aligned global dry/wet
-        const float o0 = outGain.current, o1 = outGain.next();
+        const float o0 = outGain.value(), o1 = outGain.next();
         const float m0 = mix.current, m1 = mix.next();
         const float oStep = (o1 - o0) / (float) len, mStep = (m1 - m0) / (float) len;
         for (int c = 0; c < numCh; ++c)

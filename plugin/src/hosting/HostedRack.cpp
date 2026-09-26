@@ -69,17 +69,54 @@ std::optional<juce::PluginDescription> HostedRack::descriptionFor (const PluginE
 }
 
 //==============================================================================
+bool HostedRack::onMessageThread()
+{
+    // no message manager at all (command-line tools): single threaded, safe to call plugins directly
+    return juce::MessageManager::getInstanceWithoutCreating() == nullptr || juce::MessageManager::existsAndIsCurrentThread();
+}
+
 void HostedRack::prepare (double sr, int block)
 {
     sampleRate = sr;
     maxBlock = std::max (1, block);
-    for (auto& o : owned)
-        if (o != nullptr)
+    if (! onMessageThread())
+    {
+        // Hosted VST3/AU plugins must be prepared on the message thread (they lock it). Some hosts
+        // call prepareToPlay from another thread: take the slots out of the audio path (audio is
+        // stopped during prepare) and prepare them on the message thread, then put them back.
+        bool any = false;
+        for (int i = 0; i < kMaxSlots; ++i)
+            if (owned[(size_t) i] != nullptr) { live[(size_t) i].store (nullptr); any = true; }
+        if (! any) return;
+        activeCount.store (0);
+        totalLatency.store (0);
+        std::weak_ptr<bool> weak = alive;
+        juce::MessageManager::callAsync ([this, weak]
         {
-            o->instance->releaseResources();
-            prepareSlot (*o);
-        }
+            if (auto a = weak.lock(); a != nullptr && *a) prepareAll();
+        });
+        return;
+    }
+    prepareAll();
+}
+
+void HostedRack::prepareAll()
+{
+    int n = 0;
+    for (int i = 0; i < kMaxSlots; ++i)
+    {
+        auto& o = owned[(size_t) i];
+        if (o == nullptr) continue;
+        live[(size_t) i].store (nullptr);
+        waitForAudioToLeave();
+        o->instance->releaseResources();
+        prepareSlot (*o);
+        live[(size_t) i].store (o.get());
+        ++n;
+    }
+    activeCount.store (n);
     recomputeLatency();
+    if (n > 0) notify();
 }
 
 void HostedRack::prepareSlot (Slot& s)
@@ -141,15 +178,17 @@ void HostedRack::recomputeLatency()
 
 void HostedRack::notify()
 {
+    if (onMessageThread()) (void) saveState();   // keep the off-thread state copy current
     if (onChanged) onChanged();
 }
 
 //==============================================================================
-bool HostedRack::install (int slot, std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& entryId, juce::String& error)
+bool HostedRack::install (int slot, std::unique_ptr<juce::AudioPluginInstance> instance, const juce::String& entryId, juce::String& error,
+                          const juce::PluginDescription* loadedFrom)
 {
     if (slot < 0 || slot >= kMaxSlots) { error = "invalid slot"; return false; }
-    if (instance == nullptr) { error = "plugin could not be created"; return false; }
-    const auto desc = instance->getPluginDescription();
+    if (instance == nullptr) { if (error.isEmpty()) error = "plugin could not be created"; return false; }
+    const auto desc = loadedFrom != nullptr ? *loadedFrom : instance->getPluginDescription();
     if (desc.isInstrument) { error = "instruments cannot be used as insert effects"; return false; }
     configureLayout (*instance);
     if (instance->getTotalNumOutputChannels() <= 0) { error = "the plugin has no audio outputs"; return false; }
@@ -166,7 +205,7 @@ bool HostedRack::install (int slot, std::unique_ptr<juce::AudioPluginInstance> i
 bool HostedRack::loadSync (int slot, const juce::PluginDescription& d, const juce::String& entryId, juce::String& error)
 {
     auto inst = getFormatManager().createPluginInstance (d, sampleRate, maxBlock, error);
-    return install (slot, std::move (inst), entryId, error);
+    return install (slot, std::move (inst), entryId, error, &d);
 }
 
 void HostedRack::loadAsync (int slot, const PluginEntry& entry, LoadCallback done)
@@ -181,11 +220,11 @@ void HostedRack::loadAsync (int slot, const PluginEntry& entry, LoadCallback don
     std::weak_ptr<bool> weak = alive;
     const auto id = entry.id;
     fm.createPluginInstanceAsync (*d, sampleRate, maxBlock,
-        [this, weak, slot, id, done] (std::unique_ptr<juce::AudioPluginInstance> inst, const juce::String& err)
+        [this, weak, slot, id, done, desc = *d] (std::unique_ptr<juce::AudioPluginInstance> inst, const juce::String& err)
         {
             if (weak.expired() || ! *weak.lock()) return;
             juce::String e = err;
-            const bool ok = install (slot, std::move (inst), id, e);
+            const bool ok = install (slot, std::move (inst), id, e, &desc);
             if (done) done (ok, ok ? juce::String() : (e.isNotEmpty() ? e : juce::String ("failed to load")));
         });
 }
@@ -289,7 +328,7 @@ std::vector<RackParamState> HostedRack::getParameters (int slot, int maxParams) 
         s.label = p->getLabel();
         s.value = p->getValue();
         s.defaultValue = p->getDefaultValue();
-        s.text = p->getText (s.value, 32);
+        if (onMessageThread()) s.text = p->getText (s.value, 32);   // hosted VST3 locks the message thread for this
         const int steps = p->getNumSteps();
         s.numSteps = steps > 0 && steps < 0x7fffffff && steps != juce::AudioProcessor::getDefaultNumParameterSteps() ? steps : 0;
         s.automatable = p->isAutomatable();
@@ -384,6 +423,12 @@ void HostedRack::applyChanges (const std::vector<RackParamChange>& params, const
 //==============================================================================
 juce::ValueTree HostedRack::saveState() const
 {
+    // Plugin state can only be read on the message thread; other threads get the last copy.
+    if (! onMessageThread())
+    {
+        std::lock_guard<std::mutex> g (cacheLock);
+        return stateCache.createCopy();
+    }
     juce::ValueTree rack ("HOSTED_RACK");
     for (int i = 0; i < kMaxSlots; ++i)
     {
@@ -401,6 +446,8 @@ juce::ValueTree HostedRack::saveState() const
         s.setProperty ("state", mb.toBase64Encoding(), nullptr);
         rack.appendChild (s, nullptr);
     }
+    std::lock_guard<std::mutex> g (cacheLock);
+    stateCache = rack.createCopy();
     return rack;
 }
 

@@ -126,6 +126,7 @@ private:
     std::shared_ptr<bool> alive = std::make_shared<bool> (true);
     struct CallbackTimer : juce::Timer { std::function<void()> fn; void timerCallback() override { if (fn) fn(); } };
     CallbackTimer rackWatch;   // message thread: follows hosted plugins' latency changes
+    int rackWatchTicks = 0;
     void restoreRack (const juce::ValueTree& rackState);
 
     void processInternal (juce::AudioBuffer<float>& buffer, bool forceBypass) noexcept;

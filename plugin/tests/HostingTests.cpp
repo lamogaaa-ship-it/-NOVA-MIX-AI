@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include "MessagePump.h"
 #include "SyntheticAudio.h"
 #include "ai/AgentTools.h"
 #include "ai/CloudEngineer.h"
@@ -110,7 +111,7 @@ TEST_CASE ("Hosted rack: a real VST3 runs after the chain with exact latency com
     proc->setParameterValue (P::LoudMatch, 0.f);
     proc->setParameterValue (P::MonitorA, 1.f);
     out = runThrough (*proc, voice, 480);
-    CHECK (maxDelayedError (out, voice, total, 1.f, 24000) < 1e-4);
+    CHECK (maxDelayedError (out, voice, total, 1.f, 96000) < 1e-4);   // after the 150 ms match-gain glide
     proc->setParameterValue (P::MonitorA, 0.f);
 
     // removing the plugin restores NOVA's own latency
@@ -135,7 +136,7 @@ TEST_CASE ("Hosted rack: session state restores the plugin, its settings and byp
     restored.prepareToPlay (48000.0, 512);
     restored.setStateInformation (state.getData(), (int) state.getSize());   // message thread: restores synchronously
     auto& r2 = restored.getHostedRack();
-    for (auto& m : restored.getEngine().getConversation().messages()) UNSCOPED_INFO (m.text);
+    for (auto& m : restored.getEngine().getConversation().messages()) UNSCOPED_INFO (m.text);   // restore problems are posted here
     REQUIRE (r2.getSlots().size() == 1);
     CHECK (r2.getSlots()[0].entryId == "VST3:test-nova");
     CHECK (r2.isBypassed (0));
@@ -150,7 +151,8 @@ TEST_CASE ("Rack tools: the cloud engineer edits a hosted plugin with validation
     int outIdx = -1;
     auto proc = processorWithHostedNova (outIdx);
     auto& engine = proc->getEngine();
-    engine.setApplyDirectly (true);
+    // Hosted VST3 plugins must be read on the message thread: the engine hands that work to the
+    // message thread, which this test pumps while it waits (no applyDirectly shortcut here).
     auto settings = engine.getSettings();
     settings.provider = "anthropic";
     settings.anthropicApiKey = "test-key";
@@ -191,7 +193,14 @@ TEST_CASE ("Rack tools: the cloud engineer edits a hosted plugin with validation
     };
     engine.setTransportOverride (transport);
     engine.submitRequest ("Turn up the plugin in my rack a little");
-    REQUIRE (engine.waitUntilIdle (60000));
+    bool idle = false;
+    for (int i = 0; i < 3000 && ! idle; ++i)
+    {
+        test::pumpMessages (20);
+        idle = engine.waitUntilIdle (1);
+    }
+    REQUIRE (idle);
+    test::pumpMessages (50);
 
     // the rack tools were offered and the tool results reached the model
     REQUIRE (transport->requests.size() == 3);

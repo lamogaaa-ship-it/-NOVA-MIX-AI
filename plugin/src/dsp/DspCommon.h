@@ -141,20 +141,25 @@ struct Biquad
 
 //==============================================================================
 // Exponential smoother for control values (runs at control rate or sample rate)
+// One-pole parameter smoother. The state is double precision: with long time constants a float
+// state stops moving once a step falls below half an ulp (150 ms at 48 kHz stalls ~4e-4 short
+// of the target), which would leave gains permanently off by a few thousandths of a dB.
 struct Smoother
 {
-    float current = 0.f, target = 0.f, coeff = 0.f;
+    double current = 0.0, target = 0.0, coeff = 0.0;
     bool initialised = false;
 
-    void setTime (float ms, double rate) noexcept { coeff = timeCoeff (ms, rate); }
+    void setTime (float ms, double rate) noexcept { coeff = (double) timeCoeff (ms, rate); }
     void setTarget (float t) noexcept
     {
-        target = t;
-        if (! initialised) { current = t; initialised = true; }
+        target = (double) t;
+        if (! initialised) { current = target; initialised = true; }
     }
-    void snap (float v) noexcept { current = target = v; initialised = true; }
-    inline float next() noexcept { current = target + coeff * (current - target); return current; }
-    bool isSettled() const noexcept { return std::abs (current - target) < 1e-5f; }
+    void snap (float v) noexcept { current = target = (double) v; initialised = true; }
+    inline float next() noexcept { current = target + coeff * (current - target); return (float) current; }
+    float value() const noexcept { return (float) current; }
+    float targetValue() const noexcept { return (float) target; }
+    bool isSettled() const noexcept { return std::abs (current - target) < 1e-5; }
 };
 
 //==============================================================================
