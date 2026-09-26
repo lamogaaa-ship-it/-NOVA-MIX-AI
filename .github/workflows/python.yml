@@ -24,3 +24,22 @@ jobs:
       - name: Test
         working-directory: ${{ matrix.project }}
         run: python -m pytest -q
+
+  real-speech:
+    # The companion's real speech-to-text (faster-whisper) on synthesised English and Arabic speech.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends espeak-ng
+          pip install -r companion/requirements-dev.txt faster-whisper
+      - name: Real STT test
+        working-directory: companion
+        env:
+          NOVA_REAL_STT: "1"
+          NOVA_STT_MODEL: base
+        run: python -m pytest -q -s tests/test_real_stt.py
