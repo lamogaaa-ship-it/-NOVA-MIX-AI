@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://novamix.ai/schemas/plugin-database.json",
+  "title": "NOVA plugin database (written by nova-plugin-scanner)",
+  "type": "object",
+  "required": ["version", "plugins"],
+  "properties": {
+    "version": {"type": "integer"},
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "format", "file", "loaded_ok"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "manufacturer": {"type": "string"},
+          "format": {"enum": ["VST3", "AudioUnit"]},
+          "version": {"type": "string"},
+          "category": {"type": "string"},
+          "file": {"type": "string"},
+          "inputs": {"type": "integer"},
+          "outputs": {"type": "integer"},
+          "latency_samples": {"type": "integer"},
+          "has_editor": {"type": "boolean"},
+          "loaded_ok": {"type": "boolean"},
+          "is_instrument": {"type": "boolean"},
+          "load_error": {"type": "string"},
+          "capabilities": {"type": "array", "items": {"type": "string"}},
+          "num_params": {"type": "integer"},
+          "scanned_at": {"type": "integer"},
+          "description_xml": {"type": "string"},
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["index", "name", "default"],
+              "properties": {
+                "index": {"type": "integer"}, "name": {"type": "string"}, "label": {"type": "string"},
+                "concept": {"type": "string"}, "concept_confidence": {"type": "number"},
+                "default": {"type": "number", "minimum": 0, "maximum": 1}, "default_text": {"type": "string"},
+                "automatable": {"type": "boolean"}, "steps": {"type": "integer"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

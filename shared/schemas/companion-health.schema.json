@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://novamix.ai/schemas/companion-health.json",
+  "title": "NOVA Companion GET /v1/health response",
+  "type": "object",
+  "required": ["ok", "version", "capabilities"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "version": {"type": "string"},
+    "capabilities": {
+      "type": "object",
+      "required": ["stt", "tts", "embeddings", "separation", "stt_engine", "embedding_model"],
+      "properties": {
+        "stt": {"type": "boolean", "description": "microphone + speech-to-text both available"},
+        "tts": {"type": "boolean"},
+        "embeddings": {"type": "boolean"},
+        "separation": {"type": "boolean"},
+        "stt_engine": {"type": "string"},
+        "tts_engine": {"type": "string"},
+        "embedding_model": {"type": "string", "description": "names the backend honestly, e.g. 'nova-dsp-embed-v1 (DSP, non-neural)'"},
+        "microphone": {"type": "string"}
+      }
+    }
+  }
+}

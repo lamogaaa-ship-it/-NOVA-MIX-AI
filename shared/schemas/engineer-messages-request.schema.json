@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://novamix.ai/schemas/engineer-messages-request.json",
+  "title": "Plug-in -> NOVA Cloud POST /v1/engineer/messages request",
+  "description": "A Claude Messages API request body restricted to the fields the backend forwards. Audio is never included: only analysis numbers and the user's text.",
+  "type": "object",
+  "required": ["model", "max_tokens", "messages"],
+  "additionalProperties": false,
+  "properties": {
+    "model": {"type": "string"},
+    "max_tokens": {"type": "integer", "minimum": 1},
+    "system": {"type": ["string", "array"]},
+    "messages": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["role", "content"],
+                 "properties": {"role": {"enum": ["user", "assistant"]}, "content": {"type": ["string", "array"]}}}},
+    "tools": {"type": "array"},
+    "tool_choice": {"type": "object"},
+    "output_config": {"type": "object", "properties": {"effort": {"enum": ["low", "medium", "high", "xhigh", "max"]}}},
+    "stop_sequences": {"type": "array", "items": {"type": "string"}},
+    "metadata": {"type": "object"}
+  }
+}

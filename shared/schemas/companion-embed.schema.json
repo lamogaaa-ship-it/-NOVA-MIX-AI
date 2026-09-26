@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://novamix.ai/schemas/companion-embed.json",
+  "title": "NOVA Companion POST /v1/embed",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "required": ["sample_rate", "pcm_f32_b64"],
+      "properties": {
+        "sample_rate": {"type": "integer", "minimum": 8000, "maximum": 384000},
+        "pcm_f32_b64": {"type": "string", "description": "RFC 4648 base64 of little-endian float32 mono samples"}
+      }
+    },
+    "response": {
+      "type": "object",
+      "required": ["embedding", "model", "neural"],
+      "properties": {
+        "embedding": {"type": "array", "items": {"type": "number"}, "minItems": 8},
+        "model": {"type": "string"},
+        "neural": {"type": "boolean"}
+      }
+    }
+  }
+}
