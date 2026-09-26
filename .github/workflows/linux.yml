@@ -12,7 +12,7 @@ on:
 
 concurrency:
   group: linux-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   BUILD_DIR: build-linux
@@ -62,6 +62,12 @@ jobs:
         run: |
           HC="$(find "$BUILD_DIR/plugin/tools" -type f -name nova-host-check -perm -u+x | head -n 1)"
           xvfb-run -a "$HC" "$BUILD_DIR/plugin/NovaMixAI_artefacts/Release/VST3/NOVA MIX AI.vst3"
+
+      - name: Plug-in scanner (real scan, schema, crash blocklist)
+        run: |
+          python3 -m venv /tmp/pyv && /tmp/pyv/bin/pip install -q jsonschema
+          SC="$(find "$BUILD_DIR/plugin/tools" -type f -name nova-plugin-scanner -perm -u+x | head -n 1)"
+          xvfb-run -a scripts/ci/scanner_check.sh "$SC" "$BUILD_DIR/plugin/NovaMixAI_artefacts/Release/VST3/NOVA MIX AI.vst3" /tmp/pyv/bin/python
 
       - name: pluginval (strictness 10)
         run: |

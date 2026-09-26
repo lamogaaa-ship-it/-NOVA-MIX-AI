@@ -12,7 +12,7 @@ on:
 
 concurrency:
   group: macos-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false   # a new push waits: every run's artifacts stay complete
 
 env:
   BUILD_DIR: build-macos
@@ -79,6 +79,12 @@ jobs:
         run: |
           HC="$(find "$BUILD_DIR/plugin/tools" -type f -name nova-host-check -perm -u+x | head -n 1)"
           "$HC" "$BUILD_DIR/plugin/NovaMixAI_artefacts/Release/VST3/NOVA MIX AI.vst3"
+
+      - name: Plug-in scanner (real scan, schema, crash blocklist)
+        run: |
+          python3 -m venv /tmp/pyv && /tmp/pyv/bin/pip install -q jsonschema
+          SC="$(find "$BUILD_DIR/plugin/tools" -type f -name nova-plugin-scanner -perm -u+x | head -n 1)"
+          scripts/ci/scanner_check.sh "$SC" "$BUILD_DIR/plugin/NovaMixAI_artefacts/Release/VST3/NOVA MIX AI.vst3" /tmp/pyv/bin/python
 
       - name: Package (.pkg, .dmg, zips)
         run: scripts/macos/package.sh "$BUILD_DIR" dist
