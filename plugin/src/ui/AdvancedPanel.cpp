@@ -56,16 +56,7 @@ AdvancedPanel::AdvancedPanel (NovaAudioProcessor& p) : proc (p), rackPanel (p)
     }
     rackTab.setTextHeight (13.f);
     rackTab.setTooltip ("Third-party VST3/AU plugins running after NOVA's chain");
-    rackTab.onClick = [this]
-    {
-        showingRack = true;
-        for (auto& b : moduleTabs) b->setToggleState (false, juce::dontSendNotification);
-        rackTab.setToggleState (true, juce::dontSendNotification);
-        for (auto& c : controls) c.comp->setVisible (false);
-        rackPanel.refreshChoices();
-        rackPanel.setVisible (true);
-        repaint();
-    };
+    rackTab.onClick = [this] { showRack(); };
     addAndMakeVisible (rackTab);
     addChildComponent (rackPanel);
     back.setTooltip ("Back to the simple AI chain view");
@@ -83,6 +74,17 @@ void AdvancedPanel::showModule (Module m)
     for (size_t i = 0; i < moduleOrder.size(); ++i)
         moduleTabs[i]->setToggleState (moduleOrder[i] == m, juce::dontSendNotification);
     rebuild();
+}
+
+void AdvancedPanel::showRack()
+{
+    showingRack = true;
+    for (auto& b : moduleTabs) b->setToggleState (false, juce::dontSendNotification);
+    rackTab.setToggleState (true, juce::dontSendNotification);
+    for (auto& c : controls) c.comp->setVisible (false);
+    rackPanel.refreshChoices();
+    rackPanel.setVisible (true);
+    repaint();
 }
 
 void AdvancedPanel::rebuild()

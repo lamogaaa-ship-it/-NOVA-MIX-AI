@@ -221,6 +221,7 @@ public:
     void paint (juce::Graphics& g) override;
     void resized() override;
     void showModule (Module m);
+    void showRack();
     void tick();
     std::function<void()> onBack;
 

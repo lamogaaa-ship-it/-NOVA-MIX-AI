@@ -210,6 +210,12 @@ public:
         strokeGlow (g, n, Colours::cyan, 2.4f, 0.8f);
     }
 
+    void showCustom (bool rackTab)
+    {
+        chain.onModeChange (true, (int) Module::Level);
+        if (rackTab) advanced.showRack();
+    }
+
     void tick (double dt)
     {
         ++frame;
@@ -293,6 +299,11 @@ void NovaEditor::resized()
 void NovaEditor::advanceAnimation (double dt)
 {
     content->tick (dt);
+}
+
+void NovaEditor::showCustomView (bool rackTab)
+{
+    content->showCustom (rackTab);
 }
 
 } // namespace nova

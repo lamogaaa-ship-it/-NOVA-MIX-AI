@@ -20,6 +20,8 @@ public:
 
     // For the screenshot tool / tests: run one animation step without a display vblank
     void advanceAnimation (double dt);
+    // For the screenshot tool: open the custom (advanced) view, optionally on the plug-in rack tab
+    void showCustomView (bool rackTab);
 
 private:
     class Content;

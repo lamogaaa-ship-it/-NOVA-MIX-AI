@@ -2,7 +2,7 @@
 // editor to PNG. Used for visual verification against the design reference.
 //
 //   nova-screenshot out.png [--wav input.wav] [--request "text"] [--reference ref.wav]
-//                   [--scale 1.0] [--mode vocal|mix|master] [--custom]
+//                   [--scale 1.0] [--mode vocal|mix|master] [--custom] [--rack] [--host-plugin path.vst3]
 
 #include <juce_gui_extra/juce_gui_extra.h>
 
@@ -117,8 +117,20 @@ int main (int argc, char* argv[])
         for (int i = 0; i < 1200 && (engine.isBusy()); ++i) playFor (0.05);
     }
     playFor (2.5);   // settle meters / spectrum / animation with processed audio
-    if (args.contains ("--custom"))
-        if (auto* c = editor->getChildComponent (0)) juce::ignoreUnused (c);
+    if (opt ("--host-plugin").isNotEmpty())
+    {
+        // load a real plug-in into rack slot 1 (e.g. NOVA's own VST3) to show the rack with content
+        auto& rack = proc->getHostedRack();
+        juce::OwnedArray<juce::PluginDescription> types;
+        for (int i = 0; i < rack.getFormatManager().getNumFormats(); ++i)
+            rack.getFormatManager().getFormat (i)->findAllTypesForFile (types, opt ("--host-plugin"));
+        juce::String err;
+        if (types.isEmpty() || ! rack.loadSync (0, *types[0], "VST3:screenshot", err))
+            std::cerr << "could not host " << opt ("--host-plugin") << ": " << err << "\n";
+        playFor (0.5);
+    }
+    if (args.contains ("--custom") || args.contains ("--rack"))
+        if (ed != nullptr) ed->showCustomView (args.contains ("--rack"));
 
     for (int i = 0; i < 30; ++i) if (ed != nullptr) ed->advanceAnimation (1.0 / 60.0);
     auto img = editor->createComponentSnapshot (editor->getLocalBounds(), true, 1.f);
