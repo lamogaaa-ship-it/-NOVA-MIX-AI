@@ -22,3 +22,8 @@ target_link_libraries(NovaHostCheck PRIVATE NovaMixAI juce::juce_audio_utils)
 foreach(tool NovaScreenshot NovaPluginScanner NovaHostCheck)
     target_compile_definitions(${tool} PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=1)
 endforeach()
+
+# juce_add_console_app does not apply PRODUCT_NAME to the executable file name
+set_target_properties(NovaScreenshot PROPERTIES OUTPUT_NAME nova-screenshot)
+set_target_properties(NovaPluginScanner PROPERTIES OUTPUT_NAME nova-plugin-scanner)
+set_target_properties(NovaHostCheck PROPERTIES OUTPUT_NAME nova-host-check)
