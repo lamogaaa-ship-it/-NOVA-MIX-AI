@@ -29,7 +29,8 @@ struct EngineerSettings
     juce::String companionUrl = "http://127.0.0.1:47800";
     bool companionEnabled = true;
     bool diagnosticsVisible = false;
-    bool speakReplies = true;                  // read replies aloud when the request was spoken (needs companion TTS)
+    bool speakReplies = true;
+    juce::String voiceLanguage = "auto";       // push-to-talk language: auto | ar | en                  // read replies aloud when the request was spoken (needs companion TTS)
     float uiScale = 1.0f;
     float editorScale = 0.f;                   // last editor size chosen by the user (fraction of 1440x1080); 0 = fit the screen
 

@@ -206,7 +206,7 @@ void AssistantPanel::startVoice()
     juce::Thread::launch ([comp]
     {
         juce::String err;
-        comp->startListening ("auto", err);
+        comp->startListening (SettingsStore::shared().get().voiceLanguage, err);
     });
 }
 

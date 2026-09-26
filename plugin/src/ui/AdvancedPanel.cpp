@@ -183,7 +183,8 @@ SettingsOverlay::SettingsOverlay (NovaAudioProcessor& p) : proc (p), engine (p.g
     provider.addItemList ({ "Automatic", "Offline engineer (no network)", "Claude API (developer key)", "NOVA Cloud" }, 1);
     effort.addItemList ({ "low", "medium", "high" }, 1);
     explanation.addItemList ({ "Simple explanations", "Engineer explanations" }, 1);
-    for (auto* c : { &provider, &effort, &explanation }) addAndMakeVisible (*c);
+    voiceLanguage.addItemList ({ "Voice language: automatic (English / Arabic)", juce::String::fromUTF8 ("Voice language: العربية (Arabic)"), "Voice language: English" }, 1);
+    for (auto* c : { &provider, &effort, &explanation, &voiceLanguage }) addAndMakeVisible (*c);
     apiKey.setPasswordCharacter ((juce::juce_wchar) 0x2022);
     for (auto* e : { &apiKey, &model, &cloudUrl, &cloudToken, &companionUrl })
     {
@@ -213,6 +214,7 @@ SettingsOverlay::SettingsOverlay (NovaAudioProcessor& p) : proc (p), engine (p.g
         s.useServerFallbacks = fallbacks.getToggleState();
         s.diagnosticsVisible = diagnostics.getToggleState();
         s.speakReplies = speak.getToggleState();
+        s.voiceLanguage = voiceLanguage.getSelectedItemIndex() == 1 ? "ar" : voiceLanguage.getSelectedItemIndex() == 2 ? "en" : "auto";
         s.explanationMode = explanation.getSelectedItemIndex() == 1 ? "engineer" : "simple";
         engine.setSettings (s);
         statusText = "Saved. Engine: " + engine.engineLabel();
@@ -278,6 +280,7 @@ void SettingsOverlay::refresh()
     fallbacks.setToggleState (s.useServerFallbacks, juce::dontSendNotification);
     diagnostics.setToggleState (s.diagnosticsVisible, juce::dontSendNotification);
     speak.setToggleState (s.speakReplies, juce::dontSendNotification);
+    voiceLanguage.setSelectedItemIndex (s.voiceLanguage == "ar" ? 1 : s.voiceLanguage == "en" ? 2 : 0, juce::dontSendNotification);
     explanation.setSelectedItemIndex (s.explanationMode == "engineer" ? 1 : 0, juce::dontSendNotification);
     if (scanning && ! scanner.isRunning())
     {
@@ -304,6 +307,7 @@ void SettingsOverlay::resized()
     row (col1, 18); cloudToken.setBounds (row (col1, 36));
     row (col2, 18); explanation.setBounds (row (col2, 36));
     row (col2, 18); companionUrl.setBounds (row (col2, 36));
+    voiceLanguage.setBounds (row (col2, 36));
     allowCloud.setBounds (row (col2, 30));
     fallbacks.setBounds (row (col2, 30));
     learning.setBounds (row (col2, 30));

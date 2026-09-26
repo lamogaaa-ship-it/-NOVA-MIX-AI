@@ -260,7 +260,7 @@ public:
 private:
     NovaAudioProcessor& proc;
     NovaEngine& engine;
-    juce::ComboBox provider, effort, explanation;
+    juce::ComboBox provider, effort, explanation, voiceLanguage;
     juce::TextEditor apiKey, model, cloudUrl, cloudToken, companionUrl;
     juce::ToggleButton allowCloud { "Allow cloud engineer (analysis numbers + text only, never audio)" },
                        learning { "Learn my taste (stored on this computer)" },

@@ -71,6 +71,7 @@ void SettingsStore::load()
     bl ("companion_enabled", settings.companionEnabled);
     bl ("diagnostics_visible", settings.diagnosticsVisible);
     bl ("speak_replies", settings.speakReplies);
+    str ("voice_language", settings.voiceLanguage);
     if (v.hasProperty ("ui_scale")) settings.uiScale = std::clamp ((float) (double) v.getProperty ("ui_scale", 1.0), 0.6f, 2.0f);
     if (v.hasProperty ("editor_scale")) settings.editorScale = std::clamp ((float) (double) v.getProperty ("editor_scale", 0.0), 0.f, 1.6f);
 }
@@ -96,6 +97,7 @@ void SettingsStore::save() const
     o->setProperty ("companion_enabled", settings.companionEnabled);
     o->setProperty ("diagnostics_visible", settings.diagnosticsVisible);
     o->setProperty ("speak_replies", settings.speakReplies);
+    o->setProperty ("voice_language", settings.voiceLanguage);
     o->setProperty ("ui_scale", settings.uiScale);
     o->setProperty ("editor_scale", settings.editorScale);
     file.getParentDirectory().createDirectory();

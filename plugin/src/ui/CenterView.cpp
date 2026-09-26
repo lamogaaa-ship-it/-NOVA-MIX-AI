@@ -35,7 +35,7 @@ CenterView::CenterView (NovaAudioProcessor& p) : proc (p), engine (p.getEngine()
         {
             talking = true;
             talk.setToggleState (true, juce::dontSendNotification);
-            juce::Thread::launch ([comp] { juce::String e; comp->startListening ("auto", e); });
+            juce::Thread::launch ([comp, lang = SettingsStore::shared().get().voiceLanguage] { juce::String e; comp->startListening (lang, e); });
         }
         else if (talk.getState() != juce::Button::buttonDown && talking)
         {
