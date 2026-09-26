@@ -130,6 +130,17 @@ public:
 
     std::function<void()> onChanged;             // message thread: slots / latency changed
 
+    // Message-thread listeners (e.g. the UI owning plugin editor windows). rackSlotWillChange()
+    // is called before a slot's plugin is replaced or destroyed: close its editor there.
+    struct Listener
+    {
+        virtual ~Listener() = default;
+        virtual void rackSlotWillChange (int /*slot*/) {}
+        virtual void rackChanged() {}
+    };
+    void addListener (Listener* l) { listeners.add (l); }
+    void removeListener (Listener* l) { listeners.remove (l); }
+
     juce::AudioPluginFormatManager& getFormatManager();
     static std::optional<juce::PluginDescription> descriptionFor (const PluginEntry& e, juce::AudioPluginFormatManager& fm);
 
@@ -163,6 +174,7 @@ private:
     std::unique_ptr<juce::AudioPluginFormatManager> formats;
     std::shared_ptr<bool> alive = std::make_shared<bool> (true);
 
+    juce::ListenerList<Listener> listeners;
     mutable std::mutex cacheLock;
     mutable juce::ValueTree stateCache { "HOSTED_RACK" };
 

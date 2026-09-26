@@ -176,6 +176,44 @@ private:
 };
 
 //==============================================================================
+// Third-party plugin rack: pick scanned plugins, bypass, open their own editors, remove.
+class RackPanel : public juce::Component, private hosting::HostedRack::Listener
+{
+public:
+    explicit RackPanel (NovaAudioProcessor& p);
+    ~RackPanel() override;
+    void paint (juce::Graphics& g) override;
+    void resized() override;
+    void refreshChoices();
+
+private:
+    struct SlotRow
+    {
+        NovaButton bypass { {}, Icon::Power, NovaButton::Style::IconOnly },
+                   edit { "Open", {}, NovaButton::Style::Pill },
+                   remove { {}, Icon::Close, NovaButton::Style::IconOnly };
+        juce::Rectangle<int> area;
+    };
+    class EditorWindow;
+
+    NovaAudioProcessor& proc;
+    hosting::HostedRack& rack;
+    juce::ComboBox pluginChoice;
+    NovaButton add { "Add to rack", Icon::Plus, NovaButton::Style::Pill };
+    std::array<SlotRow, hosting::HostedRack::kMaxSlots> rows;
+    std::vector<hosting::PluginEntry> choices;
+    std::array<std::unique_ptr<juce::DocumentWindow>, hosting::HostedRack::kMaxSlots> editors;
+    juce::String status;
+    bool loading = false;
+    juce::int64 catalogStamp = -1;
+
+    void rackSlotWillChange (int slot) override;
+    void rackChanged() override;
+    void updateRows();
+    void openEditor (int slot);
+};
+
+//==============================================================================
 class AdvancedPanel : public juce::Component
 {
 public:
@@ -202,6 +240,9 @@ private:
     };
     std::vector<Control> controls;
     juce::Rectangle<float> curveArea;
+    NovaButton rackTab { "Plugins", {}, NovaButton::Style::Segment };
+    RackPanel rackPanel;
+    bool showingRack = false;
     void rebuild();
 };
 

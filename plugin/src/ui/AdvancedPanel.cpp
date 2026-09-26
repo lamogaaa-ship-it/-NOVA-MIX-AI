@@ -42,7 +42,7 @@ public:
 };
 } // namespace
 
-AdvancedPanel::AdvancedPanel (NovaAudioProcessor& p) : proc (p)
+AdvancedPanel::AdvancedPanel (NovaAudioProcessor& p) : proc (p), rackPanel (p)
 {
     moduleOrder = { Module::Level, Module::EQ, Module::ToneMatch, Module::DynEQ, Module::Comp, Module::DeEss, Module::Color,
                     Module::Space, Module::Motion, Module::Image, Module::Limiter, Module::Global };
@@ -54,6 +54,20 @@ AdvancedPanel::AdvancedPanel (NovaAudioProcessor& p) : proc (p)
         addAndMakeVisible (*b);
         moduleTabs.push_back (std::move (b));
     }
+    rackTab.setTextHeight (13.f);
+    rackTab.setTooltip ("Third-party VST3/AU plugins running after NOVA's chain");
+    rackTab.onClick = [this]
+    {
+        showingRack = true;
+        for (auto& b : moduleTabs) b->setToggleState (false, juce::dontSendNotification);
+        rackTab.setToggleState (true, juce::dontSendNotification);
+        for (auto& c : controls) c.comp->setVisible (false);
+        rackPanel.refreshChoices();
+        rackPanel.setVisible (true);
+        repaint();
+    };
+    addAndMakeVisible (rackTab);
+    addChildComponent (rackPanel);
     back.setTooltip ("Back to the simple AI chain view");
     back.onClick = [this] { if (onBack) onBack(); };
     addAndMakeVisible (back);
@@ -63,6 +77,9 @@ AdvancedPanel::AdvancedPanel (NovaAudioProcessor& p) : proc (p)
 void AdvancedPanel::showModule (Module m)
 {
     current = m;
+    showingRack = false;
+    rackTab.setToggleState (false, juce::dontSendNotification);
+    rackPanel.setVisible (false);
     for (size_t i = 0; i < moduleOrder.size(); ++i)
         moduleTabs[i]->setToggleState (moduleOrder[i] == m, juce::dontSendNotification);
     rebuild();
@@ -112,9 +129,11 @@ void AdvancedPanel::resized()
     auto r = getLocalBounds().reduced (18, 12);
     back.setBounds (r.removeFromTop (30).removeFromRight (120).reduced (0, 1));
     auto tabs = r.removeFromTop (30);
-    const int tw = tabs.getWidth() / (int) moduleTabs.size();
+    const int tw = tabs.getWidth() / ((int) moduleTabs.size() + 1);
     for (auto& b : moduleTabs) b->setBounds (tabs.removeFromLeft (tw).reduced (2, 1));
+    rackTab.setBounds (tabs.reduced (2, 1));
     r.removeFromTop (10);
+    rackPanel.setBounds (r);
     const int cellW = 104, cellH = std::min (112, r.getHeight() / 2);
     const int cols = std::max (1, r.getWidth() / cellW);
     int i = 0;
@@ -138,6 +157,7 @@ void AdvancedPanel::paint (juce::Graphics& g)
     paintGlassPanel (g, getLocalBounds().toFloat().reduced (1.f), 16.f);
     auto r = getLocalBounds().toFloat().reduced (18.f, 12.f);
     paintSectionTitle (g, "AI MIX CHAIN  /  CUSTOM", r.removeFromTop (30.f));
+    if (showingRack) return;
     g.setFont (Fonts::medium (12.5f));
     for (auto& c : controls)
     {
@@ -216,8 +236,10 @@ SettingsOverlay::SettingsOverlay (NovaAudioProcessor& p) : proc (p), engine (p.g
                              + ".exe"
                            #endif
             ;
+        const auto binDir = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getParentDirectory();
         juce::Array<juce::File> candidates {
-            juce::File::getSpecialLocation (juce::File::currentExecutableFile).getParentDirectory().getChildFile (exeName),
+            binDir.getSiblingFile ("Helpers").getChildFile (exeName),   // macOS bundles: Contents/Helpers (installer)
+            binDir.getChildFile (exeName),
             novaUserDataDirectory().getChildFile ("bin").getChildFile (exeName),
             juce::File ("/usr/local/bin").getChildFile (exeName),
             juce::File ("/Library/Application Support/NOVA MIX AI/bin").getChildFile (exeName) };

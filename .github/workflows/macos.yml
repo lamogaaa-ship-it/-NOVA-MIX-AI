@@ -1,0 +1,122 @@
+name: macOS build
+
+# Universal (arm64 + x86_64) VST3, Audio Unit and Standalone app, unit tests, pluginval,
+# auval, ad-hoc code signing, .pkg installer and .dmg. Everything is uploaded as artifacts.
+
+on:
+  push:
+    branches: ["**"]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_DIR: build-macos
+  PLUGINVAL_VERSION: v1.0.4
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          brew install ninja || true
+          cmake --version
+          xcodebuild -version
+
+      - name: Cache dependencies (JUCE, Catch2)
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.BUILD_DIR }}/_deps/*-src
+          key: deps-macos-${{ hashFiles('cmake/NovaDependencies.cmake') }}
+
+      - name: Configure (Release, universal)
+        run: |
+          cmake -S . -B "$BUILD_DIR" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
+            -DNOVA_BUILD_TESTS=ON -DNOVA_BUILD_TOOLS=ON
+
+      - name: Build
+        run: cmake --build "$BUILD_DIR" --parallel
+
+      - name: Check architectures
+        run: |
+          ART="$BUILD_DIR/plugin/NovaMixAI_artefacts/Release"
+          for f in "$ART/VST3/NOVA MIX AI.vst3/Contents/MacOS/NOVA MIX AI" \
+                   "$ART/AU/NOVA MIX AI.component/Contents/MacOS/NOVA MIX AI" \
+                   "$ART/Standalone/NOVA MIX AI.app/Contents/MacOS/NOVA MIX AI"; do
+            echo "$f: $(lipo -archs "$f")"
+            lipo -archs "$f" | grep -q arm64
+            lipo -archs "$f" | grep -q x86_64
+          done
+
+      - name: Unit and integration tests
+        run: |
+          "$BUILD_DIR/plugin/tests/NovaTests" --reporter console --reporter "JUnit::out=$BUILD_DIR/test-results.xml"
+
+      - name: Host check (load the VST3 like a DAW)
+        run: |
+          HC="$(find "$BUILD_DIR/plugin/tools" -type f -name nova-host-check -perm -u+x | head -n 1)"
+          "$HC" "$BUILD_DIR/plugin/NovaMixAI_artefacts/Release/VST3/NOVA MIX AI.vst3"
+
+      - name: Package (.pkg, .dmg, zips)
+        run: scripts/macos/package.sh "$BUILD_DIR" dist
+
+      - name: pluginval (VST3, strictness 10)
+        run: |
+          curl -fsSL -o pluginval.zip "https://github.com/Tracktion/pluginval/releases/download/${PLUGINVAL_VERSION}/pluginval_macOS.zip"
+          unzip -q pluginval.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 10 \
+            --timeout-ms 600000 --output-dir pluginval-logs \
+            --validate "dist/stage/vst3/NOVA MIX AI.vst3"
+
+      - name: Install AU and run auval
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "dist/stage/au/NOVA MIX AI.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -a | grep -i nvax || true
+          auval -strict -v aufx Nmix Nvax
+
+      - name: pluginval (AU, strictness 10)
+        run: |
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 10 \
+            --timeout-ms 600000 --output-dir pluginval-logs \
+            --validate ~/Library/Audio/Plug-Ins/Components/"NOVA MIX AI.component"
+
+      - name: Upload installer (.pkg + .dmg)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-MIX-AI-macOS-installer
+          path: |
+            dist/*.pkg
+            dist/*.dmg
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Upload plug-in bundles (VST3, AU, Standalone)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-MIX-AI-macOS-bundles
+          path: dist/*.zip
+          if-no-files-found: error
+
+      - name: Upload test and validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-MIX-AI-macOS-reports
+          path: |
+            ${{ env.BUILD_DIR }}/test-results.xml
+            pluginval-logs/
+          if-no-files-found: ignore

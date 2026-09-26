@@ -29,6 +29,9 @@ HostedRack::HostedRack() = default;
 
 HostedRack::~HostedRack()
 {
+    for (int i = 0; i < kMaxSlots; ++i)
+        if (owned[(size_t) i] != nullptr)
+            listeners.call ([i] (Listener& l) { l.rackSlotWillChange (i); });
     *alive = false;
     for (int i = 0; i < kMaxSlots; ++i) live[(size_t) i].store (nullptr);
     waitForAudioToLeave();
@@ -150,6 +153,8 @@ bool HostedRack::waitForAudioToLeave()
 
 void HostedRack::publish (int slot, std::unique_ptr<Slot> s)
 {
+    if (owned[(size_t) slot] != nullptr)
+        listeners.call ([slot] (Listener& l) { l.rackSlotWillChange (slot); });
     auto old = std::move (owned[(size_t) slot]);
     owned[(size_t) slot] = std::move (s);
     live[(size_t) slot].store (owned[(size_t) slot].get());
@@ -180,6 +185,7 @@ void HostedRack::notify()
 {
     if (onMessageThread()) (void) saveState();   // keep the off-thread state copy current
     if (onChanged) onChanged();
+    listeners.call ([] (Listener& l) { l.rackChanged(); });
 }
 
 //==============================================================================
