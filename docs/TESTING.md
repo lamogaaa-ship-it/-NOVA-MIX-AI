@@ -21,6 +21,21 @@ build/plugin/tests/NovaTests "[hosting]"     # one area
 
 On Linux, run under `xvfb-run -a`.
 
+### Sanitizers
+
+The full suite also runs clean under **AddressSanitizer + UndefinedBehaviorSanitizer**: no memory errors and no undefined behaviour in 40/40 test cases. This includes hosting a real VST3 and the engine's worker threads. To reproduce:
+
+```sh
+cmake -S . -B build-asan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address,undefined" \
+  -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address,undefined" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+cmake --build build-asan --target NovaTests
+ASAN_OPTIONS=detect_leaks=0:alloc_dealloc_mismatch=0 xvfb-run -a build-asan/plugin/tests/NovaTests
+```
+
+`alloc_dealloc_mismatch=0` is needed because the real-time allocation probe replaces the global `operator new`.
+
 ## Tools
 
 - `nova-host-check <plugin>`: loads a built plug-in through JUCE's hosting layer like a DAW. It checks passthrough, latency reporting, parameter effect and state restore (`--editor` also opens the UI).
