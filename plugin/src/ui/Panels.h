@@ -52,7 +52,6 @@ public:
     void tick (double dt);
 
 private:
-    NovaAudioProcessor& proc;
     NovaEngine& engine;
     juce::Viewport viewport;
     std::unique_ptr<juce::Component> list;

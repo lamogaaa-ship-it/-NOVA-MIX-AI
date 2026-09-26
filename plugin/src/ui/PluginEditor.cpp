@@ -258,7 +258,7 @@ private:
 
 //==============================================================================
 NovaEditor::NovaEditor (NovaAudioProcessor& p)
-    : AudioProcessorEditor (p), processor (p),
+    : AudioProcessorEditor (p), novaProcessor (p),
       vblank (this, [this] (double ts)
       {
           const double dt = lastVBlank > 0 ? std::clamp (ts - lastVBlank, 0.0, 0.1) : 1.0 / 60.0;
@@ -293,7 +293,7 @@ NovaEditor::NovaEditor (NovaAudioProcessor& p)
 
 NovaEditor::~NovaEditor()
 {
-    processor.getEngine().getAnalysis().removeViewer();
+    novaProcessor.getEngine().getAnalysis().removeViewer();
     // remember the size the user chose for next time
     auto s = SettingsStore::shared().get();
     const float scale = (float) getWidth() / (float) kBaseW;

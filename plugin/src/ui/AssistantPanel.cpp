@@ -150,7 +150,7 @@ private:
 };
 
 //==============================================================================
-AssistantPanel::AssistantPanel (NovaAudioProcessor& p) : proc (p), engine (p.getEngine())
+AssistantPanel::AssistantPanel (NovaAudioProcessor& p) : engine (p.getEngine())
 {
     list = std::make_unique<juce::Component>();
     viewport.setViewedComponent (list.get(), false);

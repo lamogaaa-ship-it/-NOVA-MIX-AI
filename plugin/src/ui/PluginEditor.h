@@ -26,7 +26,7 @@ public:
 
 private:
     class Content;
-    NovaAudioProcessor& processor;
+    NovaAudioProcessor& novaProcessor;   // typed access (AudioProcessorEditor::processor is the base class)
     ui::NovaLookAndFeel lnf;
     std::unique_ptr<Content> content;
     juce::TooltipWindow tooltips { this, 600 };
