@@ -103,6 +103,7 @@ public:
     double sampleRate() const noexcept { return sr; }
     std::shared_ptr<const juce::AudioBuffer<float>> inputAudio() const { return input; }
     const ChainOrder& chainOrder() const noexcept { return order; }
+    void setChainOrder (const ChainOrder& o) { order = o; candidateMetricsValid = false; }
 
 private:
     std::shared_ptr<const juce::AudioBuffer<float>> input;

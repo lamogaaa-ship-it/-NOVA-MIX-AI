@@ -118,6 +118,7 @@ private:
     std::atomic<bool> finishRequested { false }, cancelRequested { false }, startRequested { false };
     juce::AudioBuffer<float> listenDry, listenWet;
     int listenWrite = 0;
+    int listenSilentRun = 0;
     int sessionCounter = 0;
 
     // results

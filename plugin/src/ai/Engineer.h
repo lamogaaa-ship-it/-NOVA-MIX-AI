@@ -39,6 +39,8 @@ struct EngineerOutcome
     bool changed = false;
     std::string reply, replyEngineer;
     ChainSettings settings;
+    ChainOrder order = defaultChainOrder();
+    bool orderChanged = false;
     std::vector<std::string> treatments;
     std::vector<TreatmentResult> steps;
     std::vector<std::string> warnings;

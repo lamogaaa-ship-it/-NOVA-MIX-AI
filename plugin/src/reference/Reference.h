@@ -74,6 +74,7 @@ public:
 
     void loadAsync (const juce::File& file, analysis::WorkMode mode, std::function<void()> onDone);
     void clear();
+    void shutdown() { pool.removeAllJobs (true, 10000); }
     State getState() const noexcept { return state.load(); }
     std::shared_ptr<const ReferenceProfile> get() const;
     juce::String getError() const;

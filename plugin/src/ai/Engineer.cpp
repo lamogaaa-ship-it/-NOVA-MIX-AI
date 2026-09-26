@@ -337,7 +337,9 @@ EngineerOutcome OfflineEngineer::handle (const std::string& request, EngineerCon
     }
 
     out.settings = final;
-    out.changed = ! diffSettings (ctx.current, final).empty();
+    out.order = session.chainOrder();
+    out.orderChanged = out.order != ctx.order;
+    out.changed = ! diffSettings (ctx.current, final).empty() || out.orderChanged;
     out.before = startMetrics;
     out.after = fm;
     out.hasMetrics = true;

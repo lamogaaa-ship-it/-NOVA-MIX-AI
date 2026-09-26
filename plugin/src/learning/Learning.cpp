@@ -6,6 +6,14 @@ namespace nova
 
 juce::File novaUserDataDirectory()
 {
+    // NOVA_USER_DATA_DIR isolates tests / portable installs from the user's real profile
+    const auto overrideDir = juce::SystemStats::getEnvironmentVariable ("NOVA_USER_DATA_DIR", {});
+    if (overrideDir.isNotEmpty())
+    {
+        juce::File d (overrideDir);
+        d.createDirectory();
+        return d;
+    }
     auto dir = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory);
    #if JUCE_MAC
     dir = dir.getChildFile ("Application Support");

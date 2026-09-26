@@ -172,6 +172,7 @@ void AnalysisEngine::run()
             if (startRequested.exchange (false))
             {
                 listenWrite = 0;
+                listenSilentRun = 0;
                 listenCollected.store (0);
             }
             if (listenState.load() == ListenState::Listening)
@@ -214,7 +215,16 @@ void AnalysisEngine::consume (const float* frames, int n)
         if (active) lastActiveCaptureMs = juce::Time::currentTimeMillis();
     }
 
-    if (listenState.load() == ListenState::Listening && active)
+    // While listening keep the natural phrasing: gaps up to 0.6 s are kept (they define phrases,
+    // breaths and reverb tails); longer silences (transport stopped, empty bars) are skipped.
+    if (listenState.load() == ListenState::Listening)
+    {
+        if (active) listenSilentRun = 0;
+        else listenSilentRun += n;
+    }
+    const bool keepForListen = listenState.load() == ListenState::Listening
+                               && (active || (listenWrite > 0 && listenSilentRun <= (int) (0.6 * sampleRate)));
+    if (keepForListen)
     {
         const int space = listenDry.getNumSamples() - listenWrite;
         const int take = std::min (space, n);
