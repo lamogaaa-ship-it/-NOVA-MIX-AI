@@ -43,3 +43,17 @@ jobs:
           NOVA_REAL_STT: "1"
           NOVA_STT_MODEL: base
         run: python -m pytest -q -s tests/test_real_stt.py
+
+  backend-image:
+    # Validates that the NOVA Cloud container builds and starts (not published anywhere).
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t nova-backend:ci backend
+      - name: Start and probe /v1/health
+        run: |
+          docker run -d --name nova -p 8080:8080 -e NOVA_CLIENT_TOKEN_SHA256=0000 nova-backend:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/v1/health && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8080/v1/health | grep -q '"ok":true'
+          docker logs nova
