@@ -87,7 +87,13 @@ DMGROOT="$OUT_DIR/dmg"
 mkdir -p "$DMGROOT"
 cp "$PKG" "$DMGROOT/Install $NAME.pkg"
 cp "$ROOT/scripts/macos/resources/README.txt" "$DMGROOT/READ ME FIRST.txt"
-hdiutil create -volname "$NAME $VERSION" -srcfolder "$DMGROOT" -ov -format UDZO "$OUT_DIR/$BASE.dmg"
+# hdiutil occasionally reports "Resource busy" on CI machines: retry a few times
+for attempt in 1 2 3 4 5; do
+    if hdiutil create -volname "$NAME $VERSION" -srcfolder "$DMGROOT" -ov -format UDZO "$OUT_DIR/$BASE.dmg"; then break; fi
+    [[ $attempt == 5 ]] && exit 1
+    sleep $((attempt * 5))
+done
+hdiutil verify "$OUT_DIR/$BASE.dmg"
 if [[ "$IDENTITY" != "-" ]]; then codesign --force --sign "$IDENTITY" "$OUT_DIR/$BASE.dmg"; fi
 
 rm -rf "$DMGROOT" "$OUT_DIR/pkgs"
