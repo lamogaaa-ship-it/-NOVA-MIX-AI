@@ -23,6 +23,7 @@ struct ProcessContext
 struct ModuleStats
 {
     double sum = 0;      // sum of per-sample values (dB of gain change)
+    double activeSum = 0;
     double maxv = 0;
     int64_t count = 0;
     int64_t activeCount = 0; // samples where |value| > 0.5 dB
@@ -31,9 +32,11 @@ struct ModuleStats
     {
         sum += v; ++count;
         maxv = std::max (maxv, v);
-        if (v > 0.5) ++activeCount;
+        if (v > 0.5) { ++activeCount; activeSum += v; }
     }
     double mean() const noexcept { return count > 0 ? sum / (double) count : 0.0; }
+    // mean over the samples where the module was actually working (> 0.5 dB)
+    double activeMean() const noexcept { return activeCount > 0 ? activeSum / (double) activeCount : 0.0; }
     double activeRatio() const noexcept { return count > 0 ? (double) activeCount / (double) count : 0.0; }
     void reset() noexcept { *this = {}; }
 };
