@@ -160,8 +160,11 @@ void AnalysisEngine::run()
             }
 
             const auto now = juce::Time::currentTimeMillis();
-            if (now - lastSpectrumMs >= 30) { updateSpectrum(); lastSpectrumMs = now; }
-            if (now - lastLiveMs >= 2000) { updateLiveInfo(); lastLiveMs = now; }
+            if (viewers.load (std::memory_order_relaxed) > 0)
+            {
+                if (now - lastSpectrumMs >= 30) { updateSpectrum(); lastSpectrumMs = now; }
+                if (now - lastLiveMs >= 2000) { updateLiveInfo(); lastLiveMs = now; }
+            }
 
             if (cancelRequested.exchange (false))
             {

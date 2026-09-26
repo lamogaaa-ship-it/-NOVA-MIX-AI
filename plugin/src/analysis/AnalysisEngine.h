@@ -83,6 +83,11 @@ public:
     void getSpectra (std::array<float, kSpectrumBins>& dry, std::array<float, kSpectrumBins>& wet) const;
     void getWaveform (std::array<float, kWaveformPoints>& out, int& writeIndex) const;
     LiveInfo getLiveInfo() const;
+
+    // Live spectrum / live info are only computed while an editor is showing them, so many
+    // closed instances in a big session cost almost nothing. Capture and LISTEN always run.
+    void addViewer() noexcept { viewers.fetch_add (1); }
+    void removeViewer() noexcept { viewers.fetch_sub (1); }
     static float spectrumBinFrequency (int bin);
 
     // Diagnostics
@@ -103,6 +108,7 @@ private:
 
     NovaAudioProcessor& processor;
     std::atomic<double> pendingRate { 0.0 };
+    std::atomic<int> viewers { 0 };
     double sampleRate = 0.0;
 
     // rolling capture (analysis-thread owned; copied out under ringLock)

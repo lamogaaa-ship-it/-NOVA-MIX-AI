@@ -268,6 +268,7 @@ NovaEditor::NovaEditor (NovaAudioProcessor& p)
 {
     setLookAndFeel (&lnf);
     juce::LookAndFeel::setDefaultLookAndFeel (&lnf);
+    p.getEngine().getAnalysis().addViewer();
     content = std::make_unique<Content> (p);
     content->setBounds (0, 0, kBaseW, kBaseH);
     addAndMakeVisible (*content);
@@ -292,6 +293,7 @@ NovaEditor::NovaEditor (NovaAudioProcessor& p)
 
 NovaEditor::~NovaEditor()
 {
+    processor.getEngine().getAnalysis().removeViewer();
     // remember the size the user chose for next time
     auto s = SettingsStore::shared().get();
     const float scale = (float) getWidth() / (float) kBaseW;
