@@ -160,6 +160,7 @@ jobs:
           cp in/plugin/*.pkg "root/1 - Install NOVA MIX AI.pkg"
           cp in/companion/*.pkg "root/2 - Install NOVA Companion (voice, optional).pkg"
           cp scripts/macos/resources/README.txt "root/READ ME FIRST.txt"
+          cp scripts/macos/resources/README-ar.txt "root/اقرأني أولاً.txt"
           for attempt in 1 2 3 4 5; do
             hdiutil create -volname "NOVA MIX AI $VERSION" -srcfolder root -ov -format UDZO "out/NOVA-MIX-AI-$VERSION-macOS-complete.dmg" && break
             [ $attempt = 5 ] && exit 1; sleep $((attempt * 5))
