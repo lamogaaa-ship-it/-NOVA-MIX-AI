@@ -31,7 +31,9 @@ juce_add_plugin(NovaMixAI
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "NOVA MIX AI uses the microphone for voice commands and standalone audio input."
     HARDENED_RUNTIME_ENABLED TRUE
+    # disable-library-validation: the Standalone app hosts third-party plug-ins in its rack
     HARDENED_RUNTIME_OPTIONS com.apple.security.device.audio-input com.apple.security.network.client
+                             com.apple.security.cs.disable-library-validation
     PLUGINHOST_AU ${NOVA_HOST_AU}
     NEEDS_CURL TRUE
     NEEDS_WEB_BROWSER FALSE)

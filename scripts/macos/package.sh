@@ -46,7 +46,9 @@ sign() {
 for b in "$STAGE/vst3/$NAME.vst3" "$STAGE/au/$NAME.component" "$STAGE/app/$NAME.app"; do
     mkdir -p "$b/Contents/Helpers"
     cp "$SCANNER" "$b/Contents/Helpers/nova-plugin-scanner"
-    sign "$b/Contents/Helpers/nova-plugin-scanner"
+    # the scanner loads other vendors' plug-ins: hardened runtime without library validation
+    codesign --force --sign "$IDENTITY" --timestamp=none --options runtime \
+        --entitlements "$ROOT/scripts/macos/host.entitlements" "$b/Contents/Helpers/nova-plugin-scanner"
     sign "$b"
     codesign --verify --deep --strict --verbose=2 "$b"
     lipo -archs "$b/Contents/MacOS/$NAME"
