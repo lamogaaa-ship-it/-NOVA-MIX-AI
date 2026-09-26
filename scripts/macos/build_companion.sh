@@ -49,7 +49,8 @@ cp "$ROOT/scripts/macos/companion/ai.novamix.companion.plist" "$PKGROOT/Library/
 pkgbuild --analyze --root "$PKGROOT" "$WORK/components.plist" >/dev/null
 i=0
 while /usr/libexec/PlistBuddy -c "Print :$i" "$WORK/components.plist" >/dev/null 2>&1; do
-    /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$WORK/components.plist"
+    /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$WORK/components.plist" 2>/dev/null \
+        || /usr/libexec/PlistBuddy -c "Add :$i:BundleIsRelocatable bool false" "$WORK/components.plist"
     i=$((i + 1))
 done
 pkgbuild --root "$PKGROOT" --component-plist "$WORK/components.plist" --install-location / \

@@ -61,13 +61,14 @@ component_pkg() {  # <stage subdir> <install location> <identifier> <pkg name> [
     # every bundle pkgbuild recognised (it may list none, e.g. for .vst3) must not be relocatable
     local i=0
     while /usr/libexec/PlistBuddy -c "Print :$i" "$plist" >/dev/null 2>&1; do
-        /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$plist"
+        /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$plist" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :$i:BundleIsRelocatable bool false" "$plist"
         i=$((i + 1))
     done
     local extra=()
     [[ -n "${5:-}" ]] && extra=(--scripts "$5")
     pkgbuild --root "$STAGE/$1" --component-plist "$plist" --install-location "$2" \
-        --identifier "$3" --version "$VERSION" "${extra[@]}" "$OUT_DIR/pkgs/$4.pkg"
+        --identifier "$3" --version "$VERSION" ${extra[@]+"${extra[@]}"} "$OUT_DIR/pkgs/$4.pkg"
 }
 component_pkg vst3 "/Library/Audio/Plug-Ins/VST3" "ai.novamix.novamixai.vst3" "vst3"
 component_pkg au "/Library/Audio/Plug-Ins/Components" "ai.novamix.novamixai.au" "au" "$ROOT/scripts/macos/au-scripts"
