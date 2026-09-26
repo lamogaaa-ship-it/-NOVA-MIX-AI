@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "SyntheticAudio.h"
+#include "ai/Suggestions.h"
 #include "ai/Engineer.h"
 #include "ai/IntentParser.h"
 #include "analysis/Analyzer.h"
@@ -214,4 +215,20 @@ TEST_CASE ("Reference match moves tone and space toward a reference", "[ai][refe
     const auto js = juce::JSON::toString (cmp);
     CHECK (js.contains ("brighter"));
     CHECK (js.contains ("wetter"));
+}
+
+
+TEST_CASE ("Every suggestion chip is understood in English and in Egyptian Arabic", "[ai][intent][arabic]")
+{
+    for (auto& chip : suggestionTexts())
+        for (auto* text : { chip.en, chip.ar })
+        {
+            const auto p = parseRequest (text);
+            INFO (chip.key << ": " << text);
+            const std::string want = chip.intent;
+            if (want == "master") CHECK (p.masterRequest);
+            else if (want == "mix") CHECK (p.generalMix);
+            else CHECK (p.has (want));
+            if (want == "harshness") CHECK_FALSE (p.has ("clarity"));   // "without making it dull" is a protection, not a request
+        }
 }

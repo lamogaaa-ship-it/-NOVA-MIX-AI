@@ -184,7 +184,7 @@ ParsedRequest parseRequest (const std::string& raw)
     // ---- brightness / darkness (order matters: "too bright" is a complaint)
     if (t.any ({ "too bright", "less bright", "darker", "dark", "less highs", "less treble", "tame the highs", "too much top", "اغمق", "غامق", "الهاي عالي", "قلل الهاي" }, &w))
         add (r, mk ("brightness", -1, w));
-    else if (t.any ({ "brighter", "bright", "more highs", "more treble", "crisp*", "too dark", "sparkl*", "shine", "اسطع", "لامع", "لمعه", "لمعان" }, &w))
+    else if (t.any ({ "brighter", "bright", "more highs", "more treble", "crisp*", "too dark", "sparkl*", "shine", "اسطع", "لامع", "لمعه", "لمعان", "المع" }, &w))
         add (r, mk ("brightness", +1, w));
 
     if (t.any ({ "more air", "airy", "air", "breathy top", "open up the top", "top end", "هوا", "هواء" }, &w) && ! t.has ("too much air"))
@@ -328,7 +328,7 @@ ParsedRequest parseRequest (const std::string& raw)
     if (t.any ({ "mix this", "mix the", "mix my", "mix it", "mix vocal", "make it sound pro*", "professional", "radio ready", "polish*", "fix it", "fix this",
                  "sound good", "sound better", "expensive", "record", "مكس", "اعمل مكس", "ظبط", "اظبط", "احترافي", "برو", "حسن" }))
         r.generalMix = true;
-    if (t.any ({ "modern pop", "pop" })) r.styleHint = "modern_pop";
+    if (t.any ({ "modern pop", "pop", "بوب" })) r.styleHint = "modern_pop";
     else if (t.any ({ "rap", "hip hop", "hip-hop", "trap", "راب" })) r.styleHint = "rap";
     else if (t.any ({ "r&b", "rnb", "soul" })) r.styleHint = "rnb";
     else if (t.any ({ "rock" })) r.styleHint = "rock";

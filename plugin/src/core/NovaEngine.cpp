@@ -1,4 +1,5 @@
 #include "NovaEngine.h"
+#include "../ai/Suggestions.h"
 #include "PluginProcessor.h"
 #include "../ai/IntentParser.h"
 #include "../net/CompanionClient.h"
@@ -495,7 +496,14 @@ void NovaEngine::giveFeedback (int messageId, int value)
 //==============================================================================
 juce::StringArray NovaEngine::suggestions() const
 {
+    // chips follow the language the user writes (or speaks) in
+    const bool ar = arabicUser.load();
     juce::StringArray s;
+    auto add = [&] (const char* key)
+    {
+        if (auto* t = ai::suggestionFor (key))
+            s.addIfNotAlreadyThere (ar ? juce::String::fromUTF8 (t->ar) : juce::String (t->en));
+    };
     const auto latest = analysisEngine.getLatestResult();
     const bool master = analysisEngine.getWorkMode() == analysis::WorkMode::Master;
     if (latest != nullptr)
@@ -503,31 +511,23 @@ juce::StringArray NovaEngine::suggestions() const
         for (auto& p : latest->semantic.problems)
         {
             if (p.confidence < 0.45f || s.size() >= 2) continue;
-            if (p.id == "harshness") s.addIfNotAlreadyThere ("Tame the harsh notes without making it dull");
-            else if (p.id == "sibilance") s.addIfNotAlreadyThere ("The S sounds are too sharp");
-            else if (p.id == "inconsistent_level" || p.id == "word_level_spikes") s.addIfNotAlreadyThere ("Make the level more consistent");
-            else if (p.id == "low_mid_congestion" || p.id == "boxiness") s.addIfNotAlreadyThere ("Clean up the muddy low-mids");
-            else if (p.id == "lack_of_presence") s.addIfNotAlreadyThere ("Bring the vocal forward");
-            else if (p.id == "lack_of_air") s.addIfNotAlreadyThere ("Add some air on top");
-            else if (p.id == "rumble") s.addIfNotAlreadyThere ("Remove the low rumble");
-            else if (p.id == "plosives") s.addIfNotAlreadyThere ("Fix the P pops");
-            else if (p.id == "roomy_recording") s.addIfNotAlreadyThere ("Bring the vocal closer");
-            else if (p.id == "true_peak_over" || p.id == "over_limited") s.addIfNotAlreadyThere ("Make it loud but keep the punch");
+            if (p.id == "harshness") add ("harshness");
+            else if (p.id == "sibilance") add ("sibilance");
+            else if (p.id == "inconsistent_level" || p.id == "word_level_spikes") add ("level");
+            else if (p.id == "low_mid_congestion" || p.id == "boxiness") add ("mud");
+            else if (p.id == "lack_of_presence") add ("presence");
+            else if (p.id == "lack_of_air") add ("air");
+            else if (p.id == "rumble") add ("rumble");
+            else if (p.id == "plosives") add ("plosives");
+            else if (p.id == "roomy_recording") add ("closer");
+            else if (p.id == "true_peak_over" || p.id == "over_limited") add ("loud_punch");
         }
     }
-    if (master)
-    {
-        s.addIfNotAlreadyThere ("Master this for streaming (-14 LUFS)");
-        s.addIfNotAlreadyThere ("Make it commercially loud but keep the punch");
-    }
-    else
-    {
-        s.addIfNotAlreadyThere ("Make the vocal brighter and clearer");
-        s.addIfNotAlreadyThere ("More warmth and analog feel");
-    }
+    if (master) { add ("streaming"); add ("commercial"); }
+    else { add ("brighter"); add ("warmth"); }
     if (references.getState() == reference::ReferenceManager::State::Ready)
-        s.addIfNotAlreadyThere (master ? "Match this reference master" : "Match this reference vocal");
-    s.addIfNotAlreadyThere (master ? "Master the song but don't crush the dynamics" : "Make it sound like a modern pop record");
+        add (master ? "match_master" : "match_vocal");
+    add (master ? "master_dyn" : "pop");
     while (s.size() > 4) s.remove (s.size() - 1);
     return s;
 }
