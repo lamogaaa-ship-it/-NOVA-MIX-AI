@@ -102,7 +102,11 @@ jobs:
           mkdir -p ~/Library/Audio/Plug-Ins/Components
           cp -R "dist/stage/au/NOVA MIX AI.component" ~/Library/Audio/Plug-Ins/Components/
           killall -9 AudioComponentRegistrar || true
-          sleep 3
+          # wait until the component registry lists the new Audio Unit
+          for i in $(seq 1 30); do
+            if auval -a 2>/dev/null | grep -q "Nmix Nvax"; then break; fi
+            sleep 2
+          done
           auval -a | grep -i nvax || true
           auval -strict -v aufx Nmix Nvax
 
