@@ -128,3 +128,35 @@ def test_mac_arabic_voice_detection():
     listing = "Alex                en_US    # Most people recognize me by my voice.\nMajed               ar_001   # مرحبًا! اسمي ماجد.\n"
     assert mac_arabic_voice(listing) == "Majed"
     assert mac_arabic_voice("Alex en_US # hi\n") is None
+
+
+def test_whisper_language_detection_is_limited_to_arabic_and_english():
+    """A short command that Whisper would call German / Persian is decided between ar and en only."""
+    from nova_companion.stt import FasterWhisperSTT
+
+    class Seg:
+        text = " نص"
+
+    class Info:
+        language = "de"
+        language_probability = 0.4
+
+    class FakeModel:
+        def __init__(self):
+            self.forced = None
+
+        def detect_language(self, audio):
+            return "de", 0.4, [("de", 0.4), ("fa", 0.3), ("ar", 0.2), ("en", 0.05)]
+
+        def transcribe(self, audio, language=None, **kw):
+            self.forced = language
+            return [Seg()], Info()
+
+    stt = object.__new__(FasterWhisperSTT)
+    stt.name, stt.available, stt.languages = "fake", True, ("ar", "en")
+    stt._model = FakeModel()
+    t = stt.transcribe(np.zeros(16000, dtype=np.float32), 16000, "auto")
+    assert t.language == "ar" and stt._model.forced == "ar"
+    assert abs(t.confidence - 0.2 / 0.25) < 1e-6
+    t2 = stt.transcribe(np.zeros(16000, dtype=np.float32), 16000, "en")   # explicit hint wins
+    assert t2.language == "en" and stt._model.forced == "en"
