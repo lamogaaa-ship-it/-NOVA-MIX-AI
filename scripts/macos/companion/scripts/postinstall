@@ -1,0 +1,7 @@
+#!/bin/sh
+# Start the companion for the logged-in user now (it also starts at every login).
+USER_ID=$(stat -f %u /dev/console)
+[ "$USER_ID" -gt 0 ] 2>/dev/null || exit 0
+launchctl bootout gui/"$USER_ID"/ai.novamix.companion >/dev/null 2>&1 || true
+launchctl bootstrap gui/"$USER_ID" /Library/LaunchAgents/ai.novamix.companion.plist >/dev/null 2>&1 || true
+exit 0

@@ -120,3 +120,21 @@ jobs:
             ${{ env.BUILD_DIR }}/test-results.xml
             pluginval-logs/
           if-no-files-found: ignore
+
+  companion:
+    # Voice companion as a self-contained app (independent of the plug-in job).
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build NOVA Companion.app + installer
+        run: scripts/macos/build_companion.sh dist-companion
+      - name: Upload companion
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-Companion-macOS
+          path: dist-companion/*
+          if-no-files-found: error
