@@ -27,8 +27,8 @@ int main (int argc, char* argv[])
 {
     juce::ScopedJuceInitialiser_GUI init;
     if (argc < 2) { std::cerr << "usage: nova-host-check <plugin path> [--editor]\n"; return 2; }
-    const juce::String path (argv[1]);
-    const bool testEditor = argc > 2 && juce::String (argv[2]) == "--editor";
+    const auto path = juce::String::fromUTF8 (argv[1]);
+    const bool testEditor = argc > 2 && juce::String::fromUTF8 (argv[2]) == "--editor";
 
     juce::AudioPluginFormatManager fm;
     juce::addDefaultFormatsToManager (fm);

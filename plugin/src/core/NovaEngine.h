@@ -122,6 +122,8 @@ private:
     juce::String phaseDetail, style;
     std::shared_ptr<ai::HttpTransport> transportOverride;
     bool applyDirectly = false;
+    std::atomic<bool> arabicUser { false };     // language of the latest request: replies and status messages follow it
+    juce::String say (const char* en, const char* ar) const { return arabicUser.load() ? juce::String::fromUTF8 (ar) : juce::String (en); }
 };
 
 } // namespace nova

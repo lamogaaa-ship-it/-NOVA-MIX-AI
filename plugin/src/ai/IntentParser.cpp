@@ -91,6 +91,16 @@ struct Text
     }
 };
 
+// "الـ S عالية" / "ال S بتصفر": the letter S written in Latin inside Arabic text
+bool sLetterMentioned (const std::string& norm, std::string& which)
+{
+    std::string spaced = " " + norm + " ";
+    for (auto& c : spaced) if (c == '.' || c == ',' || c == '!' || c == '?') c = ' ';
+    for (auto* pat : { "الـ s ", "الـs ", "ال s ", "الs " })
+        if (spaced.find (normaliseForMatching (pat)) != std::string::npos) { which = pat; return true; }
+    return false;
+}
+
 void add (ParsedRequest& r, Intent i)
 {
     for (auto& e : r.intents)
@@ -113,7 +123,9 @@ ParsedRequest parseRequest (const std::string& raw)
         else if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z')) lat = true;
     }
     r.language = ar && lat ? "mixed" : (ar ? "ar" : "en");
-    r.isQuestion = t.norm.find ('?') != std::string::npos || t.any ({ "what did you", "why did", "explain", "what changed", "how does", "ليه", "عملت ايه", "اشرح" });
+    r.isQuestion = t.norm.find ('?') != std::string::npos || raw.find ("\xd8\x9f") != std::string::npos   // '?' or Arabic '؟'
+                   || t.any ({ "what did you", "why did", "explain", "what changed", "how does", "what do you think", "ليه", "عملت ايه", "اشرح",
+                               "ايه رايك", "رايك", "تفتكر" });
 
     // global intensity
     float amount = 0.5f;
@@ -124,8 +136,19 @@ ParsedRequest parseRequest (const std::string& raw)
     const bool preserveDyn = t.any ({ "don't crush", "dont crush", "not crush", "without crushing", "preserve dynamic*", "keep the dynamic*", "keep dynamic*",
                                       "not squash*", "without squash*", "natural", "not over-compress*", "without sounding over", "over-compressed",
                                       "keep the punch", "preserve punch", "preserve the punch", "without over", "من غير ما تبوظ", "من غير ضغط", "متضغطش", "طبيعي" });
-    const bool avoidDull = t.any ({ "without making it dull", "not dull", "without losing clarity", "without dulling", "keep it clear", "keep the clarity",
-                                    "without losing the clarity", "من غير ما يبقي مكتوم", "من غير ما يقفل", "يفضل واضح" });
+    static const std::initializer_list<const char*> kAvoidDull { "without making it dull", "not dull", "without losing clarity", "without dulling",
+        "keep it clear", "keep the clarity", "without losing the clarity", "من غير ما يبقي مكتوم", "من غير ما يكون مكتوم", "بدون ما يبقي مكتوم",
+        "من غير ما يبقي مطفي", "مايبقاش مكتوم", "ميبقاش مكتوم", "من غير ما يقفل", "يفضل واضح" };
+    const bool avoidDull = t.any (kAvoidDull);
+    // The protection clause itself ("... without it getting muffled") is not a clarity request:
+    // look for clarity complaints in the text with those clauses removed.
+    std::string withoutClauses = t.norm;
+    for (auto* ph : kAvoidDull)
+    {
+        const auto pn = normaliseForMatching (ph);
+        for (size_t pos; (pos = withoutClauses.find (pn)) != std::string::npos;) withoutClauses.replace (pos, pn.size(), " ");
+    }
+    const Text tc (withoutClauses);
     r.refersToPrevious = t.any ({ "no,", "no ", "now it", "now its", "now it's", "too much", "went too", "overdid", "back off", "لا ", "لا,", "بقي", "كده", "زياده" })
                          || t.norm.rfind ("no", 0) == 0 || t.norm.rfind ("لا", 0) == 0;
 
@@ -149,18 +172,14 @@ ParsedRequest parseRequest (const std::string& raw)
 
     // ---- sibilance
     if (t.any ({ "sibilan*", "s sounds", "s's", "esses", "the s ", "ss sounds", "hissy", "hiss*", "de-ess*", "deess*", "sss*", "'s'",
-                 "السين", "حرف س", "الصفير", "صفير", "تسسس" }, &w))
+                 "السين", "حرف س", "الصفير", "صفير", "تسسس", "حروف الـ s", "حروف ال s", "حرف الـ s", "الشين" }, &w)
+        || sLetterMentioned (t.norm, w))
         add (r, mk ("sibilance", +1, w));
 
     // ---- clarity / muffled
-    if (t.any ({ "muffled", "muddy and", "unclear", "not clear", "clearer", "clarity", "clear", "buried", "cloudy", "dull", "intelligib*", "can't understand",
-                 "مكتوم", "مش واضح", "اوضح", "وضوح", "مخنوق", "مدفون", "واضح" }, &w))
-    {
-        // "clear"/"clarity" as a protection clause ("without losing clarity") is not a request
-        if (! (avoidDull && ! t.any ({ "muffled", "unclear", "not clear", "clearer", "buried", "مكتوم", "مش واضح", "مخنوق" }))
-            && ! t.any ({ "keep it clear", "without losing clarity", "without making it dull" }))
-            add (r, mk ("clarity", +1, w));
-    }
+    if (tc.any ({ "muffled", "muddy and", "unclear", "not clear", "clearer", "clarity", "clear", "buried", "cloudy", "dull", "intelligib*", "can't understand",
+                  "مكتوم", "مش واضح", "اوضح", "وضوح", "مخنوق", "مدفون", "واضح" }, &w))
+        add (r, mk ("clarity", +1, w));
 
     // ---- brightness / darkness (order matters: "too bright" is a complaint)
     if (t.any ({ "too bright", "less bright", "darker", "dark", "less highs", "less treble", "tame the highs", "too much top", "اغمق", "غامق", "الهاي عالي", "قلل الهاي" }, &w))

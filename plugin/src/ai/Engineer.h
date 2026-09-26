@@ -67,7 +67,9 @@ public:
 
     // Pieces reused by the cloud agent's tools
     static ChainSettings revertChanges (const ChainSettings& current, const ActionRecord& action, const std::string& target, int& reverted);
-    static std::string analysisSummary (const analysis::AnalysisResult& a, bool engineer);
+    static std::string analysisSummary (const analysis::AnalysisResult& a, bool engineer, const std::string& language = "en");
+    // "ar" for Arabic and mixed Arabic/English requests, otherwise "en"
+    static std::string replyLanguage (const std::string& parsedLanguage) { return parsedLanguage == "en" || parsedLanguage.empty() ? "en" : "ar"; }
     static std::string verificationLine (const Metrics& before, const Metrics& after);
 };
 

@@ -92,6 +92,8 @@ public:
     const ChainSettings startSettings;
     PreferenceBias bias;
     std::atomic<bool>* cancelFlag = nullptr;
+    std::string language = "en";      // "en" or "ar": language of the SIMPLE explanations
+    std::string say (std::string en, std::string ar) const { return language == "ar" ? std::move (ar) : std::move (en); }
 
     const analysis::AudioFeatures& features() const noexcept { return inputFeatures; }
     const analysis::SemanticProfile& semantic() const noexcept { return sem; }

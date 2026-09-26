@@ -133,6 +133,33 @@ TEST_CASE ("Follow-up 'no, now it's harsh, bring back the highs and make it warm
     CHECK (std::find (second.treatments.begin(), second.treatments.end(), "harshness") == second.treatments.end());
     CHECK (second.settings[eqBandParam (4, 3)] < shelfAfterFirst);          // highs put back
     CHECK (second.settings.on (P::ColOn));                                   // warmer (tape colour)
+
+    // replies follow the user's language: the English request got English, the Egyptian one Arabic
+    auto hasArabic = [] (const std::string& t) { const auto s = juce::String::fromUTF8 (t.c_str()); for (auto c : s) if (c >= 0x0600 && c <= 0x06FF) return true; return false; };
+    CHECK_FALSE (hasArabic (first.reply));
+    CHECK (hasArabic (second.reply));
+    CHECK (second.reply.find ("I ") == std::string::npos);
+}
+
+TEST_CASE ("Arabic requests get Arabic explanations with the measured numbers", "[ai][arabic]")
+{
+    test::VoiceSpec spec;
+    auto voice = test::makeVoice (spec);
+    EngineerContext ctx;
+    ctx.audio = analyse (voice, spec.sampleRate);
+    auto out = OfflineEngineer::handle ("الصوت حاد شوية والـ S عالية، خليه أنعم من غير ما يبقى مكتوم", ctx);
+    INFO (out.reply);
+    REQUIRE (out.changed);
+    const auto reply = juce::String::fromUTF8 (out.reply.c_str());
+    CHECK (reply.containsChar ((juce::juce_wchar) 0x0627));            // Arabic letters
+    CHECK (reply.contains ("dB"));                                     // numbers and units kept
+    CHECK_FALSE (reply.contains ("I tamed"));
+    // questions about the audio are answered in Arabic too
+    auto q = OfflineEngineer::handle ("ايه رأيك في الصوت؟", ctx);
+    CHECK (juce::String::fromUTF8 (q.reply.c_str()).contains (juce::String::fromUTF8 ("سمعت")));
+    // English stays English
+    auto en = OfflineEngineer::handle ("The S sounds are too sharp", ctx);
+    CHECK (juce::String::fromUTF8 (en.reply.c_str()).containsChar ((juce::juce_wchar) 0x0627) == false);
 }
 
 TEST_CASE ("Offline engineer refuses to invent problems and asks for audio when it has none", "[ai]")

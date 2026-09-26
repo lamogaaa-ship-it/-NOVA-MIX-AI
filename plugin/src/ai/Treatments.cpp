@@ -272,8 +272,10 @@ TreatmentResult TreatmentSession::levelConsistency (const TreatmentRequest& req)
     }
     finish (r, s2, m2);
     r.confidence = 0.8f;
-    r.simple = "I evened out the vocal: the difference between your quiet and loud phrases went from about " + f1 (startStd)
-               + " dB to " + f1 (m2.phraseStdDb) + " dB (spread), without squashing it.";
+    r.simple = say ("I evened out the vocal: the difference between your quiet and loud phrases went from about " + f1 (startStd)
+                        + " dB to " + f1 (m2.phraseStdDb) + " dB (spread), without squashing it.",
+                    "ظبطت ثبات الفوكال: الفرق بين الجمل الواطية والعالية نزل من حوالي " + f1 (startStd) + " dB لـ "
+                        + f1 (m2.phraseStdDb) + " dB، من غير ما أخنقه.");
     r.engineer = "Level rider first (target " + f1 (s2[P::LvlTarget]) + " dB K-RMS, +/-" + f1 (s2[P::LvlRange]) + " dB, " + f1 (s2[P::LvlSpeed])
                  + " ms) so the compressor doesn't have to chase phrase level, then " + f1 (s2[P::CompRatio]) + ":1 at " + f1 (s2[P::CompThresh])
                  + " dB (" + f1 (s2[P::CompAttack]) + "/" + f1 (s2[P::CompRelease]) + " ms, avg GR " + f1 (m2.compAvgGr) + " dB, max " + f1 (m2.compMaxGr)
@@ -301,7 +303,8 @@ TreatmentResult TreatmentSession::harshness (const TreatmentRequest& req)
         {
             auto s = sibilance (req);
             s.log.insert (s.log.begin(), "no upper-mid harsh events found; the measured problem is sibilance");
-            s.simple = "The harsh bits I can measure are the 's' sounds, not the notes - so I de-essed. " + s.simple;
+            s.simple = say ("The harsh bits I can measure are the 's' sounds, not the notes - so I de-essed. ",
+                            "الحدة اللي قدرت أقيسها جاية من حروف الـ S مش من النوتات، فعملت de-essing. ") + s.simple;
             return s;
         }
         if (sem.find ("upper_mid_heavy") != nullptr || sem.find ("excessive_brightness") != nullptr)
@@ -313,7 +316,8 @@ TreatmentResult TreatmentSession::harshness (const TreatmentRequest& req)
             ++r.iterations;
             finish (r, s, m);
             r.confidence = 0.5f;
-            r.simple = "It's bright overall rather than harsh on specific notes, so I pulled the upper mids down gently (" + f1 (cut) + " dB around 3.2 kHz).";
+            r.simple = say ("It's bright overall rather than harsh on specific notes, so I pulled the upper mids down gently (" + f1 (cut) + " dB around 3.2 kHz).",
+                            "الصوت لامع بشكل عام مش حاد في نوتات معينة، فنزّلت الـ upper mids بهدوء (" + f1 (cut) + " dB حوالين 3.2 kHz).");
             r.engineer = "No event-level harshness; broad 2-5 kHz share is high (" + f1 (f.upperMidDb) + " dB of total). Static bell " + f1 (cut)
                          + " dB @ 3.2 kHz Q 0.8. Presence " + f1 (r.before.presence) + " -> " + f1 (m.presence) + " dB (loudness matched).";
             return r;
@@ -332,8 +336,10 @@ TreatmentResult TreatmentSession::harshness (const TreatmentRequest& req)
         ++r.iterations;
         finish (r, s, m);
         r.confidence = 0.3f;
-        r.simple = "I couldn't find specific harsh moments in what I heard, so I only added light dynamic control around " + hzs (fh)
-                   + ". If a particular part still hurts, play that part and ask again.";
+        r.simple = say ("I couldn't find specific harsh moments in what I heard, so I only added light dynamic control around " + hzs (fh)
+                            + ". If a particular part still hurts, play that part and ask again.",
+                        "مالقيتش لحظات حادة واضحة في اللي سمعته، فحطيت بس تحكم ديناميكي خفيف حوالين " + hzs (fh)
+                            + ". لو في جزء معين لسه بيوجع، شغّله واطلب تاني.");
         r.engineer = "No harsh events detected (0 frames exceeded the voice's own 2-5 kHz norm by 4 dB). Safety net: dyn band @" + hzs (fh)
                      + ", max cut 3 dB, threshold 6 dB above the calm band level.";
         r.warnings.push_back ("low evidence for harshness");
@@ -376,8 +382,10 @@ TreatmentResult TreatmentSession::harshness (const TreatmentRequest& req)
     }
     finish (r, best, bestM);
     r.confidence = f.harshEvents.size() >= 3 ? 0.8f : 0.6f;
-    r.simple = "I tamed the harsh moments only when they happen: they're about " + f1 (bestRed) + " dB softer around " + hzs (fh)
-               + ", while the rest of the vocal keeps its clarity (" + f1 (bestLoss) + " dB change elsewhere).";
+    r.simple = say ("I tamed the harsh moments only when they happen: they're about " + f1 (bestRed) + " dB softer around " + hzs (fh)
+                        + ", while the rest of the vocal keeps its clarity (" + f1 (bestLoss) + " dB change elsewhere).",
+                    "هدّيت اللحظات الحادة بس وقت ما بتحصل: بقت أهدى بحوالي " + f1 (bestRed) + " dB حوالين " + hzs (fh)
+                        + "، وباقي الفوكال محتفظ بوضوحه (التغيير في الباقي " + f1 (bestLoss) + " dB).");
     r.engineer = "Measured " + std::to_string (f.harshEvents.size()) + " harsh events centred at " + hzs (f.harshCenterHz) + " (+" + f1 (f.harshSeverityDb)
                  + " dB over this voice's 2-5 kHz norm). Dynamic bell @" + hzs (fh) + " Q " + f1 (q) + ", threshold " + f1 (best[dynBandParam (kDynHarsh, 3)])
                  + " dB, max cut " + f1 (best[dynBandParam (kDynHarsh, 4)]) + " dB instead of a static cut. Loudness-matched: harsh moments -" + f1 (bestRed)
@@ -398,7 +406,8 @@ TreatmentResult TreatmentSession::sibilance (const TreatmentRequest& req)
     if (f.sibilantEvents.empty())
     {
         r.skipReason = "no sibilant events measured";
-        r.simple = "I didn't hear any 's' sounds standing out, so I left the de-esser off.";
+        r.simple = say ("I didn't hear any 's' sounds standing out, so I left the de-esser off.",
+                        "ماسمعتش حروف S بارزة، فسبت الـ de-esser مقفول.");
         return r;
     }
     const float fs = std::clamp (f.sibilanceCenterHz, 4000.f, 11000.f);
@@ -427,7 +436,8 @@ TreatmentResult TreatmentSession::sibilance (const TreatmentRequest& req)
     }
     finish (r, best, bestM);
     r.confidence = f.sibilantEvents.size() >= 4 ? 0.8f : 0.55f;
-    r.simple = "I softened the 's' sounds by about " + f1 (bestRed) + " dB without taking the air off the rest of the vocal.";
+    r.simple = say ("I softened the 's' sounds by about " + f1 (bestRed) + " dB without taking the air off the rest of the vocal.",
+                    "نعّمت حروف الـ S بحوالي " + f1 (bestRed) + " dB من غير ما آخد الـ air من باقي الفوكال.");
     r.engineer = std::to_string (f.sibilantEvents.size()) + " sibilants centred at " + hzs (f.sibilanceCenterHz) + " (p90 " + f1 (f.sibilanceSeverityDb)
                  + " dB vs vowels). Split-band de-esser @" + hzs (fs) + ", threshold " + f1 (best[P::DessThresh]) + " dB, range " + f1 (best[P::DessRange])
                  + " dB. Loudness-matched: sibilants -" + f1 (bestRed) + " dB, same band on non-sibilant audio -" + f1 (bestLoss) + " dB.";
@@ -447,25 +457,28 @@ TreatmentResult TreatmentSession::clarity (const TreatmentRequest& req)
     // 1. our own chain making it dull?
     if (s.on (P::DessOn) && (r.before.dessAvgGr > 4.f || s[P::DessRange] > 10.f))
     {
-        causes.push_back ("the de-esser was working hard (avg " + f1 (r.before.dessAvgGr) + " dB)");
+        causes.push_back (say ("the de-esser was working hard (avg " + f1 (r.before.dessAvgGr) + " dB)",
+                               "الـ de-esser كان شغال جامد (متوسط " + f1 (r.before.dessAvgGr) + " dB)"));
         setp (s, P::DessRange, std::max (3.f, s[P::DessRange] * 0.6f));
         setp (s, P::DessThresh, s[P::DessThresh] + 3.f);
-        actions.push_back ("relaxed the de-esser");
+        actions.push_back (say ("relaxed the de-esser", "خففت الـ de-esser"));
     }
     if (s.on (P::CompOn) && r.before.compAvgGr > 7.f)
     {
-        causes.push_back ("heavy compression (avg " + f1 (r.before.compAvgGr) + " dB GR)");
+        causes.push_back (say ("heavy compression (avg " + f1 (r.before.compAvgGr) + " dB GR)",
+                               "كومبريشن تقيل (متوسط " + f1 (r.before.compAvgGr) + " dB)"));
         setp (s, P::CompThresh, s[P::CompThresh] + 3.f);
         setp (s, P::CompRatio, std::max (1.8f, s[P::CompRatio] - 1.f));
-        actions.push_back ("eased the compressor");
+        actions.push_back (say ("eased the compressor", "خففت الكومبريسور"));
     }
     if (s.on (P::SpcOn) && (s[P::SpcRevMix] > 30.f || r.before.tailToDirectDb > -18.f))
     {
-        causes.push_back ("the reverb is masking the voice (tail " + f1 (r.before.tailToDirectDb) + " dB at 80 ms)");
+        causes.push_back (say ("the reverb is masking the voice (tail " + f1 (r.before.tailToDirectDb) + " dB at 80 ms)",
+                               "الـ reverb مغطي على الصوت"));
         setp (s, P::SpcRevMix, s[P::SpcRevMix] * 0.6f);
         setp (s, P::SpcDuck, std::max (40.f, s[P::SpcDuck]));
         setp (s, P::SpcLowCut, std::max (300.f, s[P::SpcLowCut]));
-        actions.push_back ("reduced and ducked the reverb");
+        actions.push_back (say ("reduced and ducked the reverb", "قللت الـ reverb وخليته يوطى تحت الصوت"));
     }
     // 2. the source itself
     const float mudIndex = f.lowMidDb - f.presenceDb;
@@ -475,31 +488,32 @@ TreatmentResult TreatmentSession::clarity (const TreatmentRequest& req)
         for (auto& res : f.resonances) if (res.freqHz > 180.f && res.freqHz < 600.f) { fm = res.freqHz; break; }
         const float cut = -(1.5f + 2.f * amount);
         setEqBand (s, kBandLowMid, 0, fm, std::min (eqGain (s, kBandLowMid), 0.f) + cut, 1.3f);
-        causes.push_back ("low-mid build-up (250-500 Hz is " + f1 (mudIndex) + " dB above presence)");
-        actions.push_back ("cut " + f1 (-cut) + " dB at " + hzs (fm));
+        causes.push_back (say ("low-mid build-up (250-500 Hz is " + f1 (mudIndex) + " dB above presence)",
+                               "تكتل في الـ low-mids (من 250 لـ 500 Hz أعلى من الـ presence بـ " + f1 (mudIndex) + " dB)"));
+        actions.push_back (say ("cut " + f1 (-cut) + " dB at " + hzs (fm), "قطعت " + f1 (-cut) + " dB عند " + hzs (fm)));
     }
     if (f.presenceDb < -14.f || sem.find ("lack_of_presence") != nullptr)
     {
         const float fp = f.presencePeakHz > 1800.f ? std::clamp (f.presencePeakHz, 2200.f, 4500.f) : 3000.f;
         const float boost = 1.5f + 2.f * amount + 0.5f * bias.brightnessDb;
         setEqBand (s, kBandPresence, 0, fp, eqGain (s, kBandPresence) + boost, 0.9f);
-        causes.push_back ("not much presence (1.5-4 kHz holds " + f1 (f.presenceDb) + " dB of the energy)");
-        actions.push_back ("+" + f1 (boost) + " dB presence at " + hzs (fp));
+        causes.push_back (say ("not much presence (1.5-4 kHz holds " + f1 (f.presenceDb) + " dB of the energy)", "الـ presence قليل"));
+        actions.push_back (say ("+" + f1 (boost) + " dB presence at " + hzs (fp), "رفعت الـ presence بـ " + f1 (boost) + " dB عند " + hzs (fp)));
     }
     if (f.sampleRate >= 40000 && (f.airDb < -34.f || sem.find ("lack_of_air") != nullptr))
     {
         const float boost = 1.5f + 2.5f * amount + 0.5f * bias.brightnessDb;
         setEqBand (s, kBandHighShelf, 2, 10000.f, eqGain (s, kBandHighShelf) + boost, 0.7f);
-        causes.push_back ("little air above 10 kHz (" + f1 (f.airDb) + " dB of the energy)");
-        actions.push_back ("+" + f1 (boost) + " dB air shelf at 10 kHz");
+        causes.push_back (say ("little air above 10 kHz (" + f1 (f.airDb) + " dB of the energy)", "الـ air قليل فوق 10 kHz"));
+        actions.push_back (say ("+" + f1 (boost) + " dB air shelf at 10 kHz", "رفعت الـ air بـ " + f1 (boost) + " dB عند 10 kHz"));
     }
     if (causes.empty())
     {
         // Nothing specific: a modest presence lift is the least destructive clarity move.
         const float boost = 1.f + 1.5f * amount;
         setEqBand (s, kBandPresence, 0, 3000.f, eqGain (s, kBandPresence) + boost, 0.8f);
-        causes.push_back ("no single measurable cause (tonal balance is within normal ranges)");
-        actions.push_back ("gentle +" + f1 (boost) + " dB presence lift");
+        causes.push_back (say ("no single measurable cause (tonal balance is within normal ranges)", "مفيش سبب واحد واضح (التوازن في الحدود الطبيعية)"));
+        actions.push_back (say ("gentle +" + f1 (boost) + " dB presence lift", "رفعت الـ presence رفعة خفيفة (" + f1 (boost) + " dB)"));
         r.confidence = 0.35f;
     }
     else r.confidence = 0.65f;
@@ -513,7 +527,7 @@ TreatmentResult TreatmentSession::clarity (const TreatmentRequest& req)
         TreatmentRequest hr; hr.id = "harshness"; hr.amount = 0.4f; hr.avoidDullness = true;
         auto h = harshness (hr);
         candidate = r.settings; candidateMetricsValid = false;
-        if (h.applied) { s = h.settings; m = h.after; actions.push_back ("added dynamic control because the lift exposed harsh notes"); }
+        if (h.applied) { s = h.settings; m = h.after; actions.push_back (say ("added dynamic control because the lift exposed harsh notes", "حطيت تحكم ديناميكي لأن الرفع كشف نوتات حادة")); }
     }
     if (r.before.sibOnEvents > -99 && m.sibOnEvents - r.before.sibOnEvents > 2.f)
     {
@@ -521,13 +535,14 @@ TreatmentResult TreatmentSession::clarity (const TreatmentRequest& req)
         TreatmentRequest sr2; sr2.id = "sibilance"; sr2.amount = 0.4f;
         auto d = sibilance (sr2);
         candidate = r.settings; candidateMetricsValid = false;
-        if (d.applied) { s = d.settings; m = d.after; actions.push_back ("de-essed the 's' sounds the lift brought out"); }
+        if (d.applied) { s = d.settings; m = d.after; actions.push_back (say ("de-essed the 's' sounds the lift brought out", "عملت de-essing لحروف الـ S اللي ظهرت")); }
     }
     finish (r, s, m);
     std::string causeText, actionText;
-    for (size_t i = 0; i < causes.size(); ++i) causeText += (i ? "; " : "") + causes[i];
-    for (size_t i = 0; i < actions.size(); ++i) actionText += (i ? ", " : "") + actions[i];
-    r.simple = "I looked for why it sounds muffled: " + causeText + ". So I " + actionText + ".";
+    for (size_t i = 0; i < causes.size(); ++i) causeText += (i ? say ("; ", "، ") : "") + causes[i];
+    for (size_t i = 0; i < actions.size(); ++i) actionText += (i ? say (", ", "، ") : "") + actions[i];
+    r.simple = say ("I looked for why it sounds muffled: " + causeText + ". So I " + actionText + ".",
+                    "دوّرت على سبب إن الصوت مكتوم: " + causeText + ". فعشان كده " + actionText + ".");
     r.engineer = "Diagnosis: " + causeText + ". Actions: " + actionText + ". Loudness-matched presence " + f1 (r.before.presence) + " -> " + f1 (m.presence)
                  + " dB, air " + f1 (r.before.air) + " -> " + f1 (m.air) + " dB, low-mid " + f1 (r.before.lowMid) + " -> " + f1 (m.lowMid) + " dB.";
     return r;
@@ -552,12 +567,14 @@ TreatmentResult TreatmentSession::presence (const TreatmentRequest& req)
         TreatmentRequest hr; hr.id = "harshness"; hr.amount = 0.4f; hr.avoidDullness = true;
         auto h = harshness (hr);
         candidate = r.settings; candidateMetricsValid = false;
-        if (h.applied) { s = h.settings; m = h.after; extra = " The lift exposed the harsh notes, so I added dynamic control there too."; }
+        if (h.applied) { s = h.settings; m = h.after; extra = say (" The lift exposed the harsh notes, so I added dynamic control there too.", " الرفع ده كشف نوتات حادة، فحطيت عليها تحكم ديناميكي كمان."); }
     }
     finish (r, s, m);
     r.confidence = 0.7f;
-    r.simple = std::string (req.direction > 0 ? "I brought the voice forward with " : "I softened the forwardness by ") + f1 (std::abs (delta))
-               + " dB around " + hzs (fp) + "." + extra;
+    r.simple = say (std::string (req.direction > 0 ? "I brought the voice forward with " : "I softened the forwardness by ") + f1 (std::abs (delta))
+                        + " dB around " + hzs (fp) + ".",
+                    std::string (req.direction > 0 ? "قدّمت الصوت لقدّام بـ " : "خففت بروز الصوت بـ ") + f1 (std::abs (delta))
+                        + " dB حوالين " + hzs (fp) + ".") + extra;
     r.engineer = "Presence bell @" + hzs (fp) + " (measured presence peak) " + f1 (delta) + " dB Q 0.9. Loudness-matched presence "
                  + f1 (r.before.presence) + " -> " + f1 (m.presence) + " dB." + extra;
     return r;
@@ -580,11 +597,12 @@ TreatmentResult TreatmentSession::air (const TreatmentRequest& req)
         TreatmentRequest dr; dr.id = "sibilance"; dr.amount = 0.45f;
         auto d = sibilance (dr);
         candidate = r.settings; candidateMetricsValid = false;
-        if (d.applied) { s = d.settings; m = d.after; extra = " The extra air made the 's' sounds pop, so I de-essed them."; }
+        if (d.applied) { s = d.settings; m = d.after; extra = say (" The extra air made the 's' sounds pop, so I de-essed them.", " الـ air الزيادة طلّع حروف الـ S، فعملت لها de-essing."); }
     }
     finish (r, s, m);
     r.confidence = 0.7f;
-    r.simple = std::string (req.direction > 0 ? "I opened up the top end (" : "I took some top end off (") + f1 (delta) + " dB above " + hzs (fAir) + ")." + extra;
+    r.simple = say (std::string (req.direction > 0 ? "I opened up the top end (" : "I took some top end off (") + f1 (delta) + " dB above " + hzs (fAir) + ").",
+                    std::string (req.direction > 0 ? "فتحت الـ top end (" : "خففت شوية من الـ top end (") + f1 (delta) + " dB فوق " + hzs (fAir) + ").") + extra;
     r.engineer = "High shelf @" + hzs (fAir) + " " + f1 (delta) + " dB Q 0.7. Air " + f1 (r.before.air) + " -> " + f1 (m.air)
                  + " dB (loudness matched), sibilants " + f1 (m.sibOnEvents - r.before.sibOnEvents) + " dB." + extra;
     return r;
@@ -612,7 +630,8 @@ TreatmentResult TreatmentSession::brightness (const TreatmentRequest& req)
             fShelf *= 1.3f;
         }
         finish (r, s, m);
-        r.simple = "I made it darker (" + f1 (cut) + " dB above ~" + hzs (fShelf) + ") but kept the presence where it was, so it stays clear.";
+        r.simple = say ("I made it darker (" + f1 (cut) + " dB above ~" + hzs (fShelf) + ") but kept the presence where it was, so it stays clear.",
+                        "خليته أغمق (" + f1 (cut) + " dB فوق " + hzs (fShelf) + ") بس سبت الـ presence زي ما هو، فيفضل واضح.");
         r.engineer = "High shelf " + f1 (cut) + " dB @" + hzs (fShelf) + ", shelf frequency raised until presence loss <= 1 dB. Air "
                      + f1 (r.before.air) + " -> " + f1 (m.air) + " dB, presence " + f1 (r.before.presence) + " -> " + f1 (m.presence) + " dB.";
     }
@@ -629,10 +648,10 @@ TreatmentResult TreatmentSession::brightness (const TreatmentRequest& req)
             TreatmentRequest dr; dr.id = "sibilance"; dr.amount = 0.45f;
             auto d = sibilance (dr);
             candidate = r.settings; candidateMetricsValid = false;
-            if (d.applied) { s = d.settings; m = d.after; extra = " and kept the 's' sounds in check"; }
+            if (d.applied) { s = d.settings; m = d.after; extra = say (" and kept the 's' sounds in check", " ومسكت حروف الـ S"); }
         }
         finish (r, s, m);
-        r.simple = "I brightened it (+" + f1 (boost) + " dB high shelf)" + extra + ".";
+        r.simple = say ("I brightened it (+" + f1 (boost) + " dB high shelf)", "خليته ألمع (" + f1 (boost) + "+ dB high shelf)") + extra + ".";
         r.engineer = "High shelf +" + f1 (boost) + " dB @5.5 kHz. Centroid " + std::to_string ((int) r.before.centroidHz) + " -> "
                      + std::to_string ((int) r.after.centroidHz) + " Hz" + extra + ".";
     }
@@ -668,7 +687,8 @@ TreatmentResult TreatmentSession::warmth (const TreatmentRequest& req)
             gain *= 0.5f;
         }
         finish (r, s, m);
-        r.simple = "I warmed it up with a little more body around " + hzs (fBody) + " and gentle tape-style saturation for an analog feel.";
+        r.simple = say ("I warmed it up with a little more body around " + hzs (fBody) + " and gentle tape-style saturation for an analog feel.",
+                        "دفّيته: زودت شوية body حوالين " + hzs (fBody) + " مع saturation خفيف زي الشريط عشان إحساس الأنالوج.");
         r.engineer = "Low shelf +" + f1 (s[eqBandParam (kBandLowShelf, 3)]) + " dB @" + hzs (fBody) + " (~1.6 x f0), tape saturation "
                      + f1 (s[P::ColDrive]) + " dB drive (2x oversampled) with +" + f1 (s[P::ColWarmth]) + "% warmth tilt. Low-mid "
                      + f1 (r.before.lowMid) + " -> " + f1 (m.lowMid) + " dB, checked against mud.";
@@ -681,7 +701,8 @@ TreatmentResult TreatmentSession::warmth (const TreatmentRequest& req)
         const Metrics m = evaluate (s);
         ++r.iterations;
         finish (r, s, m);
-        r.simple = "I leaned it out: " + f1 (cut) + " dB of low body around " + hzs (fBody) + ".";
+        r.simple = say ("I leaned it out: " + f1 (cut) + " dB of low body around " + hzs (fBody) + ".",
+                        "خففت التقل: " + f1 (cut) + " dB من الـ body حوالين " + hzs (fBody) + ".");
         r.engineer = "Low shelf " + f1 (cut) + " dB @" + hzs (fBody) + ". Body " + f1 (r.before.body) + " -> " + f1 (m.body) + " dB.";
     }
     r.confidence = 0.65f;
@@ -711,7 +732,8 @@ TreatmentResult TreatmentSession::mud (const TreatmentRequest& req)
     }
     finish (r, s, m);
     r.confidence = prom > 0 ? 0.7f : 0.5f;
-    r.simple = "I cleared some low-mid build-up (" + f1 (cut) + " dB around " + hzs (fm) + ") so the voice isn't clouded, keeping its body.";
+    r.simple = say ("I cleared some low-mid build-up (" + f1 (cut) + " dB around " + hzs (fm) + ") so the voice isn't clouded, keeping its body.",
+                    "نضّفت التكتل في الـ low-mids (" + f1 (cut) + " dB حوالين " + hzs (fm) + ") عشان الصوت مايبقاش مكتوم، ومن غير ما يخسر الـ body.");
     r.engineer = std::string ("Bell ") + f1 (cut) + " dB @" + hzs (fm) + (prom > 0 ? " (measured resonance, " + f1 (prom) + " dB prominent)" : " (typical build-up region)")
                  + ". Low-mid " + f1 (r.before.lowMid) + " -> " + f1 (m.lowMid) + " dB, body loss capped at 2.5 dB.";
     return r;
@@ -724,7 +746,7 @@ TreatmentResult TreatmentSession::resonance (const TreatmentRequest& req)
     if (f.resonances.empty())
     {
         r.skipReason = "no prominent resonances measured";
-        r.simple = "I didn't find a narrow ringing resonance to notch.";
+        r.simple = say ("I didn't find a narrow ringing resonance to notch.", "مالقيتش رنين ضيق محتاج notch.");
         return r;
     }
     const auto res = f.resonances.front();
@@ -747,7 +769,7 @@ TreatmentResult TreatmentSession::resonance (const TreatmentRequest& req)
     ++r.iterations;
     finish (r, s, m);
     r.confidence = 0.6f;
-    r.simple = "I notched out a ringing resonance at " + hzs (res.freqHz) + ".";
+    r.simple = say ("I notched out a ringing resonance at " + hzs (res.freqHz) + ".", "شلت رنين مزعج عند " + hzs (res.freqHz) + " بـ notch ضيق.");
     r.engineer = "Narrow cut " + f1 (cut) + " dB Q 5 @" + hzs (res.freqHz) + " (" + f1 (res.prominenceDb) + " dB above the 2/3-octave smoothed spectrum)"
                  + (res.freqHz > 2000.f ? ", dynamic so it only acts when it rings." : ".");
     return r;
@@ -777,7 +799,8 @@ TreatmentResult TreatmentSession::rumble (const TreatmentRequest& req)
     }
     finish (r, s, m);
     r.confidence = 0.8f;
-    r.simple = "I removed sub rumble below " + hzs (fc) + " - nothing the voice actually uses.";
+    r.simple = say ("I removed sub rumble below " + hzs (fc) + " - nothing the voice actually uses.",
+                    "شلت الـ rumble اللي تحت " + hzs (fc) + "، ودي ترددات الصوت مش بيستخدمها أصلًا.");
     r.engineer = "High-pass " + hzs (fc) + (workMode == WorkMode::Vocal ? " 24 dB/oct (0.6 x lowest f0 " + hzs (f.f0MinHz) + ")" : " 12 dB/oct")
                  + ". Sub " + f1 (r.before.sub) + " -> " + f1 (m.sub) + " dB, body change " + f1 (m.body - r.before.body) + " dB.";
     return r;
@@ -808,7 +831,8 @@ TreatmentResult TreatmentSession::plosives (const TreatmentRequest& req)
     ++r.iterations;
     finish (r, s, m);
     r.confidence = f.plosiveEvents.empty() ? 0.35f : 0.7f;
-    r.simple = "I tamed the P/B pops with a high-pass and a fast low-band compressor that only reacts to the bursts.";
+    r.simple = say ("I tamed the P/B pops with a high-pass and a fast low-band compressor that only reacts to the bursts.",
+                    "هدّيت فرقعة حروف الـ P والـ B بـ high-pass وكومبريسور سريع على الترددات الواطية بيشتغل بس على الفرقعات.");
     r.engineer = std::to_string (f.plosiveEvents.size()) + " plosive bursts measured. " + rr.engineer + " Dynamic low band @110 Hz, 1 ms attack, threshold "
                  + f1 (lvl - 6.f) + " dB, up to 9 dB cut.";
     return r;
@@ -843,7 +867,8 @@ TreatmentResult TreatmentSession::space (const TreatmentRequest& req)
             mix *= 1.3f;
         }
         finish (r, s, m);
-        r.simple = "I placed the voice in a space: a " + f1 (decay) + " s reverb with a short pre-delay so the words stay clear, ducked under the singing.";
+        r.simple = say ("I placed the voice in a space: a " + f1 (decay) + " s reverb with a short pre-delay so the words stay clear, ducked under the singing.",
+                        "حطيت الصوت في مساحة: reverb طوله " + f1 (decay) + " ثانية مع pre-delay قصير عشان الكلام يفضل واضح، وبيوطى وإنت بتغني.");
         r.engineer = "FDN reverb " + f1 (s[P::SpcRevMix]) + "% return, decay " + f1 (decay) + " s, pre-delay 30 ms, low cut 250 Hz, duck "
                      + f1 (s[P::SpcDuck]) + "%. Tail 80 ms after phrase ends " + f1 (r.before.tailToDirectDb) + " -> " + f1 (m.tailToDirectDb) + " dB.";
     }
@@ -855,7 +880,7 @@ TreatmentResult TreatmentSession::space (const TreatmentRequest& req)
             setp (s, P::SpcRevMix, s[P::SpcRevMix] * (1.f - 0.6f * amount));
             setp (s, P::SpcDlyMix, s[P::SpcDlyMix] * (1.f - 0.6f * amount));
             setp (s, P::SpcDuck, std::max (s[P::SpcDuck], 50.f));
-            acts.push_back ("pulled the reverb/delay back and ducked them");
+            acts.push_back (say ("pulled the reverb/delay back and ducked them", "رجّعت الـ reverb والـ delay لورا وخليتهم يوطوا تحت الصوت"));
         }
         // proximity cues: a touch of density + presence + low body
         setp (s, P::CompOn, 1);
@@ -869,7 +894,7 @@ TreatmentResult TreatmentSession::space (const TreatmentRequest& req)
         else
             setp (s, P::CompRatio, s[P::CompRatio] + 0.5f);
         setEqBand (s, kBandPresence, 0, f.presencePeakHz > 1800.f ? f.presencePeakHz : 3000.f, eqGain (s, kBandPresence) + 1.f + amount, 0.9f);
-        acts.push_back ("added a little density and presence (proximity cues)");
+        acts.push_back (say ("added a little density and presence (proximity cues)", "زودت شوية كثافة و presence عشان إحساس القُرب"));
         ChainSettings s2 = s;
         Metrics m = evaluate (s2, true);
         ++r.iterations;
@@ -882,13 +907,14 @@ TreatmentResult TreatmentSession::space (const TreatmentRequest& req)
         }
         finish (r, s2, m);
         std::string a;
-        for (size_t i = 0; i < acts.size(); ++i) a += (i ? " and " : "") + acts[i];
-        r.simple = "I brought the voice closer: I " + a + ".";
+        for (size_t i = 0; i < acts.size(); ++i) a += (i ? say (" and ", " و") : "") + acts[i];
+        r.simple = say ("I brought the voice closer: I " + a + ".", "قرّبت الصوت: " + a + ".");
         r.engineer = "Closer = less diffuse field + more direct-sound cues. " + a + ". Tail " + f1 (r.before.tailToDirectDb) + " -> " + f1 (m.tailToDirectDb) + " dB.";
         if (f.spaceConfidence > 0.3f && f.tailToDirectDb > -24.f)
         {
             r.warnings.push_back ("the recording itself contains room sound (tail " + f1 (f.tailToDirectDb) + " dB); NOVA cannot remove baked-in reverb yet");
-            r.simple += " Note: some room sound is baked into the recording itself and can't be fully removed.";
+            r.simple += say (" Note: some room sound is baked into the recording itself and can't be fully removed.",
+                             " ملحوظة: في صدى أوضة متسجل في التسجيل نفسه ومينفعش يتشال بالكامل.");
         }
     }
     r.confidence = 0.65f;
@@ -923,8 +949,9 @@ TreatmentResult TreatmentSession::width (const TreatmentRequest& req)
         const Metrics m = evaluate (s, true);
         ++r.iterations;
         finish (r, s, m);
-        r.simple = req.direction > 0 ? "The lead stays centred (as it should); I widened the space around it with a ping-pong 1/8-dotted delay and full-width reverb."
-                                     : "I narrowed the effects around the voice.";
+        r.simple = req.direction > 0 ? say ("The lead stays centred (as it should); I widened the space around it with a ping-pong 1/8-dotted delay and full-width reverb.",
+                                            "الصوت الأساسي فاضل في النص زي ما لازم، ووسّعت المساحة حواليه بـ ping-pong delay على 1/8 dotted و reverb بعرض كامل.")
+                                     : say ("I narrowed the effects around the voice.", "ضيّقت المؤثرات اللي حوالين الصوت.");
         r.engineer = "Mono lead kept centred; width created in the FX returns. Side/mid " + f1 (r.before.sideToMidDb) + " -> " + f1 (m.sideToMidDb)
                      + " dB, mono sum change " + f1 (m.monoLossDb) + " dB.";
     }
@@ -943,8 +970,9 @@ TreatmentResult TreatmentSession::width (const TreatmentRequest& req)
             w = 100.f + (w - 100.f) * 0.6f;   // back off if mono compatibility suffers
         }
         finish (r, s, m);
-        r.simple = req.direction > 0 ? "I widened the stereo image to " + std::to_string ((int) w) + "% and kept the low end mono so it still works on phones and clubs."
-                                     : "I narrowed the stereo image to " + std::to_string ((int) w) + "%.";
+        r.simple = req.direction > 0 ? say ("I widened the stereo image to " + std::to_string ((int) w) + "% and kept the low end mono so it still works on phones and clubs.",
+                                            "وسّعت الـ stereo لـ " + std::to_string ((int) w) + "% وسبت الـ low end مونو عشان يشتغل كويس على الموبايلات والكلوبات.")
+                                     : say ("I narrowed the stereo image to " + std::to_string ((int) w) + "%.", "ضيّقت الـ stereo لـ " + std::to_string ((int) w) + "%.");
         r.engineer = "M/S width " + std::to_string ((int) w) + "%, mono below 120 Hz. Side/mid " + f1 (r.before.sideToMidDb) + " -> " + f1 (m.sideToMidDb)
                      + " dB; mono sum change " + f1 (m.monoLossDb) + " dB (checked <= 1.5 dB).";
     }
@@ -1001,8 +1029,10 @@ TreatmentResult TreatmentSession::loudness (const TreatmentRequest& req)
     const float plr = m.truePeakDb - m.integratedLufs;
     r.confidence = 0.8f;
     const bool reached = std::abs (m.integratedLufs - target) < 0.6f;
-    r.simple = "Master is now " + f1 (m.integratedLufs) + " LUFS with peaks safely at " + f1 (m.truePeakDb) + " dBTP"
-               + (reached ? "." : " - I stopped short of " + f1 (target) + " LUFS to keep the punch.");
+    r.simple = say ("Master is now " + f1 (m.integratedLufs) + " LUFS with peaks safely at " + f1 (m.truePeakDb) + " dBTP"
+                        + (reached ? "." : " - I stopped short of " + f1 (target) + " LUFS to keep the punch."),
+                    "الماستر بقى " + f1 (m.integratedLufs) + " LUFS والـ peaks في الأمان عند " + f1 (m.truePeakDb) + " dBTP"
+                        + (reached ? "." : "، ووقفت قبل " + f1 (target) + " LUFS عشان أحافظ على الـ punch."));
     r.engineer = "Glue comp " + f1 (s[P::CompRatio]) + ":1 (avg " + f1 (m.compAvgGr) + " dB GR) -> lookahead limiter +" + f1 (s[P::LimGain]) + " dB drive, ceiling "
                  + f1 (s[P::LimCeiling]) + " dB, release " + f1 (s[P::LimRelease]) + " ms. " + f1 (r.before.integratedLufs) + " -> " + f1 (m.integratedLufs)
                  + " LUFS, TP " + f1 (m.truePeakDb) + " dBTP, PLR " + f1 (plr) + " dB (floor " + f1 (minPlr) + "), crest " + f1 (r.before.crestDb) + " -> "
@@ -1028,7 +1058,9 @@ TreatmentResult TreatmentSession::saturation (const TreatmentRequest& req)
     r.iterations = tmp.iterations;
     r.confidence = 0.6f;
     static const char* names[] = { "tape", "tube", "soft-clip" };
-    r.simple = std::string ("I added ") + names[type] + " saturation for colour and density, level matched so you hear the character, not just volume.";
+    static const char* namesAr[] = { "شريط (tape)", "لمبات (tube)", "soft-clip" };
+    r.simple = say (std::string ("I added ") + names[type] + " saturation for colour and density, level matched so you hear the character, not just volume.",
+                    std::string ("ضفت saturation من نوع ") + namesAr[type] + " عشان اللون والكثافة، وظبطت المستوى عشان تسمع الطابع مش مجرد علو صوت.");
     r.engineer = std::string (names[type]) + " shaper, " + f1 (s[P::ColDrive]) + " dB drive, 2x oversampled, mix " + f1 (s[P::ColMix])
                  + "%. Output matched to " + f1 (r.before.integratedLufs) + " LUFS; crest " + f1 (r.before.crestDb) + " -> " + f1 (r.after.crestDb) + " dB.";
     return r;
@@ -1052,8 +1084,11 @@ TreatmentResult TreatmentSession::rhythmicGate (const TreatmentRequest& req)
     static const char* divNames[] = { "1/4", "1/8", "1/8 triplet", "1/16", "1/16 triplet", "1/32" };
     static const char* patNames[] = { "straight", "offbeat", "3-3-2 stutter", "broken", "half-time" };
     r.confidence = 0.75f;
-    r.simple = std::string ("I added a rhythmic ") + patNames[pat] + " chop on " + divNames[div] + " notes, locked to your " + std::to_string ((int) std::lround (trans.bpm))
-               + " BPM" + (trans.hostProvidesTempo ? "" : " (default tempo - the host didn't report one)") + ".";
+    static const char* patNamesAr[] = { "منتظم", "offbeat", "ستاتر 3-3-2", "مكسّر", "half-time" };
+    r.simple = say (std::string ("I added a rhythmic ") + patNames[pat] + " chop on " + divNames[div] + " notes, locked to your " + std::to_string ((int) std::lround (trans.bpm))
+                        + " BPM" + (trans.hostProvidesTempo ? "" : " (default tempo - the host didn't report one)") + ".",
+                    std::string ("ضفت تقطيع إيقاعي (") + patNamesAr[pat] + ") على نوتات " + divNames[div] + "، ماشي مع الـ " + std::to_string ((int) std::lround (trans.bpm))
+                        + " BPM" + (trans.hostProvidesTempo ? "" : " (تيمبو افتراضي لأن الـ DAW مابعتش التيمبو)") + ".");
     r.engineer = std::string ("Tempo-synced gate: ") + divNames[div] + " steps = " + f1 ((float) stepMs) + " ms at " + f1 ((float) trans.bpm) + " BPM, pattern "
                  + patNames[pat] + ", depth " + f1 (s[P::GateDepth]) + "%, 2.5 ms edges to avoid clicks. Follows host transport position.";
     return r;
@@ -1078,7 +1113,8 @@ TreatmentResult TreatmentSession::delayThrow (const TreatmentRequest& req)
     finish (r, s, m);
     const double ms = dsp::SpaceModule::delayTimeMs (s, trans.bpm);
     r.confidence = 0.7f;
-    r.simple = "I added tempo-synced delay throws that sit behind the vocal and bloom in the gaps.";
+    r.simple = say ("I added tempo-synced delay throws that sit behind the vocal and bloom in the gaps.",
+                    "ضفت delay throws ماشية مع التيمبو، قاعدة ورا الفوكال وبتظهر في الفراغات.");
     r.engineer = "Ping-pong delay " + std::string (choiceName (kParams[(size_t) P::SpcDlyDiv], div)) + " = " + f1 ((float) ms) + " ms at " + f1 ((float) trans.bpm)
                  + " BPM, feedback " + f1 (s[P::SpcDlyFeedback]) + "%, 5.5 kHz tone, ducked " + f1 (s[P::SpcDuck]) + "% by the dry signal.";
     return r;
@@ -1110,7 +1146,8 @@ TreatmentResult TreatmentSession::punch (const TreatmentRequest& req)
     finish (r, matched.settings, matched.after);
     r.iterations += tmp.iterations;
     r.confidence = 0.55f;
-    r.simple = "I made the hits punchier: the compressor lets each attack through before clamping the sustain, blended in parallel.";
+    r.simple = say ("I made the hits punchier: the compressor lets each attack through before clamping the sustain, blended in parallel.",
+                    "خليت الضربات أقوى: الكومبريسور بيسيب الـ attack يعدّي وبعدين يمسك الـ sustain، ومتخلط parallel.");
     r.engineer = "Slow-attack (30 ms) / fast-release (70 ms) " + f1 (s[P::CompRatio]) + ":1 compression at " + f1 (s[P::CompMix]) + "% parallel mix, avg GR "
                  + f1 (r.after.compAvgGr) + " dB. Crest " + f1 (r.before.crestDb) + " -> " + f1 (r.after.crestDb) + " dB, loudness matched.";
     return r;
@@ -1129,7 +1166,8 @@ TreatmentResult TreatmentSession::body (const TreatmentRequest& req)
     ++r.iterations;
     finish (r, s, m);
     r.confidence = 0.6f;
-    r.simple = std::string (req.direction > 0 ? "I added body " : "I reduced the body ") + "around " + hzs (fb) + ".";
+    r.simple = say (std::string (req.direction > 0 ? "I added body " : "I reduced the body ") + "around " + hzs (fb) + ".",
+                    std::string (req.direction > 0 ? "زودت الـ body " : "خففت الـ body ") + "حوالين " + hzs (fb) + ".");
     r.engineer = "Low shelf " + f1 (g) + " dB @" + hzs (fb) + ". Body " + f1 (r.before.body) + " -> " + f1 (m.body) + " dB, low-mid "
                  + f1 (r.before.lowMid) + " -> " + f1 (m.lowMid) + " dB.";
     return r;

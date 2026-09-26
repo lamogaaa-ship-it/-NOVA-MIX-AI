@@ -39,7 +39,7 @@ int main (int argc, char* argv[])
 {
     juce::ScopedJuceInitialiser_GUI init;
     juce::StringArray args;
-    for (int i = 1; i < argc; ++i) args.add (argv[i]);
+    for (int i = 1; i < argc; ++i) args.add (juce::String::fromUTF8 (argv[i]));
     if (args.isEmpty()) { std::cout << "usage: nova-screenshot out.png [--wav f] [--request text] [--reference f] [--scale s] [--mode m] [--custom]\n"; return 1; }
     const juce::File out (juce::File::getCurrentWorkingDirectory().getChildFile (args[0]));
     auto opt = [&] (const juce::String& k) { const int i = args.indexOf (k); return i >= 0 && i + 1 < args.size() ? args[i + 1] : juce::String(); };

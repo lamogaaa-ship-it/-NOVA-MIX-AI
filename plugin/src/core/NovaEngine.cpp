@@ -24,7 +24,7 @@ NovaEngine::NovaEngine (NovaAudioProcessor& p)
         if (r == nullptr || busy.load()) return;
         ai::ChatMessage m;
         m.role = ai::ChatMessage::Role::Assistant;
-        m.text = ai::OfflineEngineer::analysisSummary (*r, false);
+        m.text = juce::String::fromUTF8 (ai::OfflineEngineer::analysisSummary (*r, false, arabicUser.load() ? "ar" : "en").c_str());
         m.engineerText = ai::OfflineEngineer::analysisSummary (*r, true);
         m.engine = "analysis";
         conversation.add (m);
@@ -207,7 +207,8 @@ std::shared_ptr<const analysis::AnalysisResult> NovaEngine::ensureWorkingAudio()
         {
             ai::ChatMessage m;
             m.role = ai::ChatMessage::Role::Status;
-            m.text = "I'm listening, but no audio is reaching NOVA yet - press play in your DAW.";
+            m.text = say ("I'm listening, but no audio is reaching NOVA yet - press play in your DAW.",
+                          "أنا بسمع، بس لسه مفيش صوت واصل لـ NOVA - شغّل التراك في الـ DAW.");
             conversation.add (m);
             announced = true;
         }
@@ -231,6 +232,7 @@ void NovaEngine::handleRequest (const Request& req)
     const std::string text = req.text.toStdString();
     const auto settings = getSettings();
     const auto parsed = ai::parseRequest (text);
+    arabicUser.store (ai::OfflineEngineer::replyLanguage (parsed.language) == "ar");
 
     // learning signal: a correction of the previous action
     if (parsed.refersToPrevious)
@@ -239,8 +241,8 @@ void NovaEngine::handleRequest (const Request& req)
 
     if (parsed.has ("undo") && parsed.intents.size() == 1)
     {
-        if (undo()) postAssistant ("Undone - you're back to the previous version.", {}, {}, {}, "offline", 0, false);
-        else postAssistant ("There's nothing to undo yet.", {}, {}, {}, "offline", 0, false);
+        if (undo()) postAssistant (say ("Undone - you're back to the previous version.", "رجّعتلك النسخة اللي قبلها."), {}, {}, {}, "offline", 0, false);
+        else postAssistant (say ("There's nothing to undo yet.", "لسه مفيش حاجة أرجع فيها."), {}, {}, {}, "offline", 0, false);
         setPhase (ai::AgentPhase::Idle);
         return;
     }
@@ -304,7 +306,8 @@ void NovaEngine::handleRequest (const Request& req)
             const auto why = juce::String (out.replyEngineer);
             ai::ChatMessage st;
             st.role = ai::ChatMessage::Role::Status;
-            st.text = "The cloud engineer is unavailable (" + why + ") - using NOVA's offline engineer instead.";
+            st.text = arabicUser.load() ? juce::String::fromUTF8 ("المهندس الأونلاين مش متاح (") + why + juce::String::fromUTF8 (") - هكمّل بالمهندس الأوفلاين بتاع NOVA.")
+                                        : "The cloud engineer is unavailable (" + why + ") - using NOVA's offline engineer instead.";
             conversation.add (st);
             usedCloud = false;
             out = ai::OfflineEngineer::handle (text, ctx);
@@ -370,7 +373,7 @@ void NovaEngine::handleRequest (const Request& req)
     }
     else if (cancelFlag.load())
     {
-        postAssistant ("Stopped - nothing was changed.", {}, {}, {}, "offline", 0, false);
+        postAssistant (say ("Stopped - nothing was changed.", "وقفت - ماغيرتش حاجة."), {}, {}, {}, "offline", 0, false);
         setPhase (ai::AgentPhase::Idle);
         return;
     }

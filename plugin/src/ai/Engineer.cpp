@@ -2,6 +2,7 @@
 #include "IntentParser.h"
 
 #include <chrono>
+#include <map>
 
 namespace nova::ai
 {
@@ -48,6 +49,54 @@ bool isLowFreqParam (int idx, const ChainSettings& s)
     return false;
 }
 bool inRange (int idx, int a, int b) { return idx >= a && idx <= b; }
+
+std::string problemTitleAr (const std::string& id, const std::string& fallback)
+{
+    static const std::map<std::string, std::string> t {
+        { "inconsistent_level", "مستوى الصوت مش ثابت بين الجمل" }, { "word_level_spikes", "كلمات أو مقاطع بتنط فجأة" },
+        { "sibilance", "حروف الـ S عالية بالنسبة للصوت" }, { "harshness", "الصوت بيبقى حاد في الأجزاء العالية" },
+        { "upper_mid_heavy", "التوازن مايل ناحية الـ upper mids" }, { "low_mid_congestion", "الـ low-mids زحمة وبتكتم الصوت" },
+        { "boxiness", "رنين علبة (boxy)" }, { "nasality", "صوت أخنف (nasal)" }, { "resonance", "رنين مزعج في الـ upper mids" },
+        { "lack_of_presence", "الصوت ناقصه presence ووضوح" }, { "lack_of_air", "ناقصه air في الـ top end" },
+        { "excessive_brightness", "لامع زيادة عن اللزوم" }, { "rumble", "في rumble تحت الصوت" },
+        { "proximity_boom", "low end مزنّ من قرب المايك" }, { "thinness", "الصوت رفيع وناقصه body" },
+        { "plosives", "فرقعة حروف الـ P والـ B" }, { "noise", "في نويز مسموع بين الجمل" }, { "clipping", "في clipping" },
+        { "dc_offset", "DC offset" }, { "clicks", "كليكات أو أصوات بُق" }, { "roomy_recording", "صدى الأوضة متسجل في التسجيل نفسه" },
+        { "over_compressed", "متضغط جامد من الأول" }, { "mono_compatibility", "خطر في التوافق مع المونو" },
+        { "stereo_imbalance", "اليمين والشمال مش متوازنين" }, { "channel_delay", "القناتين مش متزامنين" },
+        { "true_peak_over", "الـ true peak فوق -1 dBTP" }, { "over_limited", "متلمت زيادة عن اللزوم" },
+        { "excess_sub", "الـ sub طاغي" }, { "lacks_sub", "ناقصه وزن في الـ sub" }, { "narrow_image", "الـ stereo ضيق" },
+        { "section_imbalance", "فروق loudness كبيرة بين أجزاء التراك" } };
+    auto it = t.find (id);
+    return it != t.end() ? it->second : fallback;
+}
+
+std::string characterAr (const std::string& tag)
+{
+    static const std::map<std::string, std::string> t {
+        { "breathy", "فيه نفَس" }, { "bright", "لامع" }, { "controlled", "متحكم فيه" }, { "dark", "غامق" }, { "distant", "بعيد" },
+        { "dry", "ناشف" }, { "dynamic", "ديناميكي" }, { "harsh_on_loud_notes", "حاد في النوتات العالية" }, { "intimate", "قريب" },
+        { "roomy", "فيه صدى أوضة" }, { "sibilant", "حروف الـ S بارزة" }, { "steady_pitch", "الـ pitch ثابت" }, { "warm", "دافي" } };
+    auto it = t.find (tag);
+    return it != t.end() ? it->second : tag;
+}
+
+std::string sourceName (analysis::SourceType src, bool arabic)
+{
+    using analysis::SourceType;
+    switch (src)
+    {
+        case SourceType::LeadVocal:    return arabic ? "فوكال أساسي" : "lead vocal";
+        case SourceType::BackingVocal: return arabic ? "باكينج فوكال" : "backing vocal";
+        case SourceType::FullMix:      return arabic ? "ميكس كامل" : "full mix";
+        case SourceType::Drums:        return arabic ? "درامز" : "drums";
+        case SourceType::Bass:         return arabic ? "باص" : "bass";
+        case SourceType::Instrument:   return arabic ? "آلة" : "instrument";
+        case SourceType::Speech:       return arabic ? "كلام" : "speech";
+        case SourceType::Unknown:      break;
+    }
+    return arabic ? "صوت" : "audio";
+}
 } // namespace
 
 ChainSettings OfflineEngineer::revertChanges (const ChainSettings& current, const ActionRecord& action, const std::string& target, int& reverted)
@@ -87,32 +136,36 @@ std::string OfflineEngineer::verificationLine (const Metrics& a, const Metrics& 
     return s + ".";
 }
 
-std::string OfflineEngineer::analysisSummary (const analysis::AnalysisResult& a, bool engineer)
+std::string OfflineEngineer::analysisSummary (const analysis::AnalysisResult& a, bool engineer, const std::string& language)
 {
     const auto& sem = a.semantic;
     const auto& f = a.inputFeatures;
+    const bool ar = language == "ar" && ! engineer;   // engineer details stay technical (English terms and numbers)
     std::string s;
     if (! f.valid)
-        return "I don't have enough audio to analyse yet - play the track so I can listen.";
-    s += "I listened to " + f1 ((float) f.activeSec) + " s of " + std::string (analysis::sourceTypeName (sem.source))
-         + " (confidence " + std::to_string ((int) std::lround (sem.sourceConfidence * 100)) + "%). ";
+        return ar ? "لسه ماسمعتش صوت كفاية عشان أحلّل - شغّل التراك عشان أسمع."
+                  : "I don't have enough audio to analyse yet - play the track so I can listen.";
+    const std::string conf = std::to_string ((int) std::lround (sem.sourceConfidence * 100));
+    s += ar ? "سمعت " + f1 ((float) f.activeSec) + " ثانية من " + sourceName (sem.source, true) + " (ثقة " + conf + "%). "
+            : "I listened to " + f1 ((float) f.activeSec) + " s of " + sourceName (sem.source, false) + " (confidence " + conf + "%). ";
     int shown = 0;
     std::string probs;
     for (auto& p : sem.problems)
     {
         if (p.confidence < 0.35f || shown >= 4) continue;
-        probs += (shown ? "; " : "") + p.title + (engineer ? " (" + p.evidence + ")" : "");
+        probs += (shown ? (ar ? "، " : "; ") : "") + (ar ? problemTitleAr (p.id, p.title) : p.title) + (engineer ? " (" + p.evidence + ")" : "");
         ++shown;
     }
-    s += shown > 0 ? "What stands out: " + probs + ". " : "Nothing stands out as a clear problem. ";
+    if (ar) s += shown > 0 ? "اللي باين: " + probs + ". " : "مفيش مشكلة واضحة. ";
+    else s += shown > 0 ? "What stands out: " + probs + ". " : "Nothing stands out as a clear problem. ";
     if (engineer)
         s += "Dynamics: " + sem.dynamicsSummary + ". Space: " + sem.spaceSummary + ".";
     else
     {
         std::string tags;
         int n = 0;
-        for (auto& c : sem.character) if (c.confidence >= 0.4f && n < 4) { tags += (n ? ", " : "") + c.tag; ++n; }
-        if (! tags.empty()) s += "Character: " + tags + ".";
+        for (auto& c : sem.character) if (c.confidence >= 0.4f && n < 4) { tags += (n ? (ar ? "، " : ", ") : "") + (ar ? characterAr (c.tag) : c.tag); ++n; }
+        if (! tags.empty()) s += (ar ? "الطابع: " : "Character: ") + tags + ".";
     }
     return s;
 }
@@ -128,12 +181,14 @@ EngineerOutcome OfflineEngineer::handle (const std::string& request, EngineerCon
 
     const auto parsed = parseRequest (request);
     const bool haveAudio = ctx.audio != nullptr && ctx.audio->input != nullptr && ctx.audio->inputFeatures.valid;
+    const std::string lang = replyLanguage (parsed.language);
+    auto say = [&lang] (std::string en, std::string ar) { return lang == "ar" ? ar : en; };
 
     // ---- undo / redo / explain need no audio
     if (parsed.has ("undo"))
     {
         out.undoRequested = true;
-        out.reply = "Undone - you're back to the previous version.";
+        out.reply = say ("Undone - you're back to the previous version.", "رجّعتلك النسخة اللي قبلها.");
         return out;
     }
     if (parsed.isQuestion && parsed.intents.empty())
@@ -147,27 +202,30 @@ EngineerOutcome OfflineEngineer::handle (const std::string& request, EngineerCon
         }
         else if (haveAudio)
         {
-            out.reply = analysisSummary (*ctx.audio, false);
+            out.reply = analysisSummary (*ctx.audio, false, lang);
             out.replyEngineer = analysisSummary (*ctx.audio, true);
         }
-        else out.reply = "Play your track and press LISTEN - I need to hear it before I can answer.";
+        else out.reply = say ("Play your track and press LISTEN - I need to hear it before I can answer.",
+                              "شغّل التراك ودوس LISTEN - لازم أسمعه الأول قبل ما أرد.");
         return out;
     }
     if (! haveAudio)
     {
         out.ok = false;
-        out.reply = "I haven't heard enough audio yet. Press play in your DAW and hit LISTEN (or just play - I'll listen for about 20 seconds), then ask again.";
+        out.reply = say ("I haven't heard enough audio yet. Press play in your DAW and hit LISTEN (or just play - I'll listen for about 20 seconds), then ask again.",
+                         "لسه ماسمعتش صوت كفاية. شغّل التراك في الـ DAW ودوس LISTEN (أو شغّل بس وأنا هسمع حوالي 20 ثانية)، وبعدين اطلب تاني.");
         return out;
     }
     if (parsed.has ("listen") && parsed.intents.size() == 1)
     {
-        out.reply = analysisSummary (*ctx.audio, false);
+        out.reply = analysisSummary (*ctx.audio, false, lang);
         out.replyEngineer = analysisSummary (*ctx.audio, true);
         return out;
     }
 
     status (AgentPhase::Thinking, "planning");
     TreatmentSession session (ctx.audio->input, ctx.audio->sampleRate, ctx.audio->inputFeatures, ctx.mode, ctx.current, ctx.order, ctx.transport);
+    session.language = lang;
     session.bias = ctx.bias;
     session.cancelFlag = ctx.cancel;
     const Metrics startMetrics = session.getCandidateMetrics();
@@ -186,13 +244,14 @@ EngineerOutcome OfflineEngineer::handle (const std::string& request, EngineerCon
             if (n > 0)
             {
                 revertedHighs = rv->revertTarget == "highs";
-                const std::string what = rv->revertTarget == "last" ? "my last change" : "what I did to the " + rv->revertTarget;
-                simple.push_back ("I put back " + what + " (from \"" + last->request + "\").");
+                const std::string what = rv->revertTarget == "last" ? say ("my last change", "آخر تعديل عملته")
+                                                                    : say ("what I did to the " + rv->revertTarget, "اللي عملته في الـ " + rv->revertTarget);
+                simple.push_back (say ("I put back " + what + " (from \"" + last->request + "\").", "رجّعت " + what + " (من طلب \"" + last->request + "\")."));
                 engineer.push_back ("Reverted " + std::to_string (n) + " parameter(s) of action #" + std::to_string (last->id) + " (" + rv->revertTarget + ").");
                 out.treatments.push_back ("revert_" + rv->revertTarget);
             }
         }
-        else simple.push_back ("There was nothing earlier to put back.");
+        else simple.push_back (say ("There was nothing earlier to put back.", "مفيش حاجة قبل كده أرجّعها."));
     }
 
     // ---- build the plan
@@ -304,7 +363,8 @@ EngineerOutcome OfflineEngineer::handle (const std::string& request, EngineerCon
     if (const auto* rm = parsed.find ("reference_match"))
     {
         if (ctx.reference == nullptr)
-            simple.push_back ("Drop a reference file into the Reference Match panel first, then ask me again.");
+            simple.push_back (say ("Drop a reference file into the Reference Match panel first, then ask me again.",
+                                   "حط ملف reference في لوحة Reference Match الأول، وبعدين اطلب تاني."));
         else
         {
             status (AgentPhase::Matching, "reference");
@@ -349,9 +409,11 @@ EngineerOutcome OfflineEngineer::handle (const std::string& request, EngineerCon
     if (simple.empty())
     {
         out.reply = parsed.intents.empty() && ! parsed.generalMix
-                        ? "I'm not sure what you'd like me to change. Try something like \"make it warmer\", \"the S sounds hurt\", or \"mix this vocal\". "
-                              + analysisSummary (*ctx.audio, false)
-                        : "I checked, and the audio doesn't show a problem I should fix for that request. " + analysisSummary (*ctx.audio, false);
+                        ? say ("I'm not sure what you'd like me to change. Try something like \"make it warmer\", \"the S sounds hurt\", or \"mix this vocal\". ",
+                               "مش متأكد عايزني أغير إيه. جرّب مثلًا \"خليه أدفى\" أو \"حروف الـ S بتوجع\" أو \"اعمل ميكس للفوكال ده\". ")
+                              + analysisSummary (*ctx.audio, false, lang)
+                        : say ("I checked, and the audio doesn't show a problem I should fix for that request. ",
+                               "راجعت، والصوت مش باين فيه مشكلة محتاجة تتصلح للطلب ده. ") + analysisSummary (*ctx.audio, false, lang);
     }
     else
     {

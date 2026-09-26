@@ -363,7 +363,8 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
         if (restrict)
             rep.limitation = "reference is a full mix and no vocal separation was available: matched only the 200 Hz - 10 kHz tonal balance";
         rep.summary = "tonal distance to the " + std::to_string ((int) std::lround (influence * 100)) + "% target " + f1 (rep.distanceBefore) + " -> " + f1 (bestErr) + " dB";
-        simpleParts.push_back ("matched the tonal balance (" + std::to_string ((int) std::lround (influence * 100)) + "% influence)");
+        simpleParts.push_back (session.say ("matched the tonal balance (" + std::to_string ((int) std::lround (influence * 100)) + "% influence)",
+                                             "قرّبت التوازن الطوني منه (بتأثير " + std::to_string ((int) std::lround (influence * 100)) + "%)"));
         std::string g;
         for (int i = 0; i < kNumToneMatchBands; ++i) g += (i ? ", " : "") + f1 (bestGains[(size_t) i]);
         engParts.push_back ("Tone match: 8-band fit (" + g + " dB @50..13k) scaled by influence; weighted third-octave error " + f1 (rep.distanceBefore) + " -> " + f1 (bestErr) + " dB");
@@ -420,7 +421,8 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
         rep.confidence = 0.75f;
         rep.summary = "crest " + f1 (cur) + " -> " + f1 (after) + " dB (reference " + f1 (rc) + ", target " + f1 (target) + ")";
         s = t;
-        if (rep.improved) simpleParts.push_back (after < cur ? "made it denser like the reference" : "gave it back some dynamics like the reference");
+        if (rep.improved) simpleParts.push_back (after < cur ? session.say ("made it denser like the reference", "خليته أكثف زي الـ reference")
+                                                            : session.say ("gave it back some dynamics like the reference", "رجّعتله شوية ديناميكس زي الـ reference"));
         engParts.push_back ("Dynamics: " + rep.summary);
         res.reports.push_back (rep);
     }
@@ -484,7 +486,8 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
             rep.confidence = std::min (ref.features.spaceConfidence, 0.8f);
             rep.summary = "tail " + f1 (cur) + " -> " + f1 (after) + " dB (reference " + f1 (rt) + ")";
             s = t;
-            if (rep.improved) simpleParts.push_back (after > cur ? "added space to match its ambience" : "dried it up like the reference");
+            if (rep.improved) simpleParts.push_back (after > cur ? session.say ("added space to match its ambience", "زودت المساحة عشان تقرب من جوّه")
+                                                                : session.say ("dried it up like the reference", "نشّفته زي الـ reference"));
         }
         engParts.push_back ("Space: " + (rep.summary.empty() ? rep.limitation : rep.summary));
         res.reports.push_back (rep);
@@ -528,7 +531,7 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
         rep.confidence = 0.6f;
         rep.summary = "side/mid " + f1 (cur) + " -> " + f1 (after) + " dB (reference " + f1 (rw) + ")";
         s = t;
-        if (rep.improved) simpleParts.push_back ("matched its width");
+        if (rep.improved) simpleParts.push_back (session.say ("matched its width", "قرّبت العرض منه"));
         engParts.push_back ("Width: " + rep.summary);
         res.reports.push_back (rep);
     }
@@ -547,7 +550,7 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
             setp (s, P::ColDrive, std::clamp (2.f + densityGap * 0.5f * influence, 2.f, 8.f));
             rep.summary = "added tape saturation (reference sounds denser; crest gap " + f1 (densityGap) + " dB)";
             rep.improved = true;
-            simpleParts.push_back ("added a little saturation for the reference's density");
+            simpleParts.push_back (session.say ("added a little saturation for the reference's density", "ضفت saturation خفيف عشان كثافة الـ reference"));
         }
         else rep.summary = "no clear colour/density difference measured";
         rep.limitation = "saturation character is estimated from density only (low confidence)";
@@ -562,7 +565,7 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
         session.candidate = s;
         ai::TreatmentRequest tr; tr.id = "sibilance"; tr.amount = std::clamp ((inF.sibilanceSeverityDb - ref.features.sibilanceSeverityDb) / 10.f * influence, 0.2f, 0.9f);
         auto d = session.run (tr);
-        if (d.applied) { s = d.settings; simpleParts.push_back ("tamed the 's' sounds like the reference"); engParts.push_back ("Vocal character: " + d.engineer); }
+        if (d.applied) { s = d.settings; simpleParts.push_back (session.say ("tamed the 's' sounds like the reference", "هدّيت حروف الـ S زي الـ reference")); engParts.push_back ("Vocal character: " + d.engineer); }
     }
 
     //--------------------------------------------------------------------------
@@ -574,7 +577,7 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
             session.candidate = s;
             ai::TreatmentRequest tr; tr.id = "loudness"; tr.targetLufs = targetL;
             auto l = session.run (tr);
-            if (l.applied) { s = l.settings; simpleParts.push_back ("matched its loudness to " + f1 (l.after.integratedLufs) + " LUFS"); engParts.push_back ("Loudness: " + l.engineer); }
+            if (l.applied) { s = l.settings; simpleParts.push_back (session.say ("matched its loudness to " + f1 (l.after.integratedLufs) + " LUFS", "ظبطت الـ loudness على " + f1 (l.after.integratedLufs) + " LUFS")); engParts.push_back ("Loudness: " + l.engineer); }
         }
         else
         {
@@ -591,10 +594,11 @@ MatchResult matchReference (ai::TreatmentSession& session, const ReferenceProfil
     res.settings = s;
     res.applied = ! ai::diffSettings (session.candidate, s).empty() || ! ai::diffSettings (session.startSettings, s).empty();
     session.candidate = s;
-    std::string simple = "I compared your audio with \"" + ref.name + "\" and ";
-    for (size_t i = 0; i < simpleParts.size(); ++i) simple += (i == 0 ? "" : (i + 1 == simpleParts.size() ? " and " : ", ")) + simpleParts[i];
-    if (simpleParts.empty()) simple += "found it already close on the dimensions you picked";
-    simple += ". Use Reference Influence to dial it in.";
+    std::string simple = session.say ("I compared your audio with \"" + ref.name + "\" and ", "قارنت الصوت بتاعك بـ \"" + ref.name + "\" و");
+    const std::string andWord = session.say (" and ", " و"), comma = session.say (", ", "، ");
+    for (size_t i = 0; i < simpleParts.size(); ++i) simple += (i == 0 ? "" : (i + 1 == simpleParts.size() ? andWord : comma)) + simpleParts[i];
+    if (simpleParts.empty()) simple += session.say ("found it already close on the dimensions you picked", "لقيته قريب منه أصلًا في الأبعاد اللي اخترتها");
+    simple += session.say (". Use Reference Influence to dial it in.", ". استخدم Match Strength عشان تظبط قد إيه يقرب منه.");
     res.simple = simple;
     for (auto& r : res.reports) if (! r.limitation.empty()) res.warnings.push_back (r.dimension + ": " + r.limitation);
     std::string eng;

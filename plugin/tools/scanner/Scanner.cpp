@@ -14,7 +14,7 @@ int main (int argc, char* argv[])
 {
     juce::ScopedJuceInitialiser_GUI init;
     juce::StringArray args;
-    for (int i = 1; i < argc; ++i) args.add (argv[i]);
+    for (int i = 1; i < argc; ++i) args.add (juce::String::fromUTF8 (argv[i]));
     auto opt = [&] (const juce::String& k) { const int i = args.indexOf (k); return i >= 0 && i + 1 < args.size() ? args[i + 1] : juce::String(); };
     const auto outPath = opt ("--output");
     if (outPath.isEmpty()) { std::cerr << "usage: nova-plugin-scanner --output db.json [--path dir]... [--no-instantiate]\n"; return 2; }
