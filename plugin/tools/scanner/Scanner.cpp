@@ -79,6 +79,7 @@ int main (int argc, char* argv[])
                 e.numOutputs = d->numOutputChannels;
                 e.isInstrument = d->isInstrument;
                 e.scannedAtMs = juce::Time::currentTimeMillis();
+                if (auto xml = d->createXml()) e.descriptionXml = xml->toString (juce::XmlElement::TextFormat().singleLine().withoutHeader());
                 if (instantiate && ! d->isInstrument)
                 {
                     juce::String err;

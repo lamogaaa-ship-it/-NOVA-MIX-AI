@@ -18,7 +18,7 @@ class AgentToolbox
 public:
     AgentToolbox (EngineerContext& ctx, TreatmentSession& session, const KnowledgeBase& kb, hosting::PluginCatalog* plugins);
 
-    static juce::var toolDefinitions (bool includePluginTools);
+    static juce::var toolDefinitions (bool includePluginTools, bool includeRackTools = false);
     juce::var execute (const juce::String& name, const juce::var& input, bool& isError);
 
     // Parameter validation shared with tests / UI
@@ -26,6 +26,9 @@ public:
     static Validation validateChange (const ChainSettings& current, const juce::String& id, const juce::var& value);
 
     std::vector<std::string> treatments, warnings;
+    std::vector<hosting::RackParamChange> rackChanges;
+    std::vector<hosting::RackBypassChange> rackBypass;
+    static constexpr float kMaxRackStep = 0.25f;   // per call, continuous parameters (normalised)
     std::shared_ptr<reference::MatchResult> lastMatch;
     juce::Array<juce::var> trace;
     int toolCalls = 0;
@@ -50,6 +53,9 @@ private:
     juce::var userPreferences();
     juce::var searchPlugins (const juce::var& in, bool& err);
     juce::var inspectPlugin (const juce::var& in, bool& err);
+    juce::var getRack (const juce::var& in, bool& err);
+    juce::var setRackParameters (const juce::var& in, bool& err);
+    juce::var setRackBypass (const juce::var& in, bool& err);
 };
 
 juce::var chainStateJson (const ChainSettings& s, const ChainOrder& order, bool onlyNonDefault, const std::string& moduleFilter = {});

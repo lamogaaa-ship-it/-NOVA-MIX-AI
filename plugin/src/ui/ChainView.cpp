@@ -106,7 +106,8 @@ void ChainView::resized()
     lmToggle.setBounds (ab.removeFromTop (28.f).toNearestInt());
     r.removeFromRight (24.f);
     const float gap = 36.f;
-    const float cw = (r.getWidth() - gap * (NumCards - 1)) / NumCards;
+    constexpr int numCards = (int) NumCards;
+    const float cw = (r.getWidth() - gap * (float) (numCards - 1)) / (float) numCards;
     for (int i = 0; i < NumCards; ++i)
         cards[(size_t) i] = juce::Rectangle<float> (r.getX() + i * (cw + gap), r.getY(), cw, r.getHeight());
 }

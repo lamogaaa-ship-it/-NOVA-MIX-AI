@@ -22,7 +22,7 @@ bool PluginCatalog::save() const
     root->setProperty ("version", 1);
     root->setProperty ("saved_at", juce::Time::getCurrentTime().toISO8601 (true));
     juce::Array<juce::var> arr;
-    for (auto& e : entries) arr.add (entryToJson (e, true));
+    for (auto& e : entries) arr.add (entryToJson (e, true, true));
     root->setProperty ("plugins", arr);
     file.getParentDirectory().createDirectory();
     return file.replaceWithText (juce::JSON::toString (juce::var (root)));
@@ -66,7 +66,7 @@ juce::int64 PluginCatalog::lastScanMs() const
     return t;
 }
 
-juce::var PluginCatalog::entryToJson (const PluginEntry& e, bool withParams)
+juce::var PluginCatalog::entryToJson (const PluginEntry& e, bool withParams, bool forStorage)
 {
     auto* o = new juce::DynamicObject();
     o->setProperty ("id", e.id);
@@ -88,6 +88,7 @@ juce::var PluginCatalog::entryToJson (const PluginEntry& e, bool withParams)
     o->setProperty ("capabilities", caps);
     o->setProperty ("num_params", (int) e.params.size());
     o->setProperty ("scanned_at", e.scannedAtMs);
+    if (forStorage && e.descriptionXml.isNotEmpty()) o->setProperty ("description_xml", e.descriptionXml);
     if (withParams)
     {
         juce::Array<juce::var> ps;
@@ -127,6 +128,7 @@ PluginEntry PluginCatalog::entryFromJson (const juce::var& v)
     e.isInstrument = v.getProperty ("is_instrument", false);
     e.loadError = v.getProperty ("load_error", {}).toString();
     e.scannedAtMs = (juce::int64) v.getProperty ("scanned_at", 0);
+    e.descriptionXml = v.getProperty ("description_xml", {}).toString();
     if (auto* caps = v.getProperty ("capabilities", {}).getArray()) for (auto& c : *caps) e.capabilities.push_back (c.toString());
     if (auto* ps = v.getProperty ("params", {}).getArray())
         for (auto& p : *ps)

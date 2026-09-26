@@ -6,6 +6,7 @@
 #include <juce_data_structures/juce_data_structures.h>
 
 #include "../ai/Treatments.h"
+#include "../hosting/HostedRack.h"
 
 #include <deque>
 #include <mutex>
@@ -56,6 +57,7 @@ struct Snapshot
     std::string label;
     ChainSettings settings;
     ChainOrder order {};
+    hosting::RackSnapshot rack;          // hosted plugin parameter values / bypass
     juce::int64 timeMs = 0;
     int actionId = 0;
 };

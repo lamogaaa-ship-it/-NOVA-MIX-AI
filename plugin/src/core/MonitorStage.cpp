@@ -3,11 +3,12 @@
 namespace nova
 {
 
-void MonitorStage::prepare (double s, int latencySamples, int maxBlock)
+void MonitorStage::prepare (double s, int latencySamples, int maxBlock, int maxLatency)
 {
     sr = s;
+    capacity = std::max (latencySamples, maxLatency);
     latency = latencySamples;
-    dryDelay.prepare (latency + maxBlock + 8, dsp::kMaxChannels);
+    dryDelay.prepare (capacity + maxBlock + 8, dsp::kMaxChannels);
     kDry.prepare (sr);
     kWet.prepare (sr);
     msCoeff = dsp::timeCoeff (1500.f, sr);

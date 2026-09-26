@@ -134,7 +134,8 @@ public:
 
     void paint (juce::Graphics& g) override
     {
-        const float scale = (float) getTransform().getScaleFactor() * juce::Component::getApproximateScaleFactorForComponent (this);
+        const auto t = getTransform();
+        const float scale = std::sqrt (std::abs (t.getDeterminant())) * juce::Component::getApproximateScaleFactorForComponent (this);
         if (background.isNull() || std::abs (bgScale - scale) > 0.01f)
         {
             bgScale = std::max (1.f, scale);
@@ -175,9 +176,9 @@ public:
             g.strokePath (s2, juce::PathStrokeType (1.2f));
         }
         // outer frame
-        const auto frame = r.reduced (14.f);
+        const auto outer = r.reduced (14.f);
         g.setColour (Colours::border.withAlpha (0.5f));
-        g.drawRoundedRectangle (frame, 22.f, 1.2f);
+        g.drawRoundedRectangle (outer, 22.f, 1.2f);
     }
 
     void paintBrand (juce::Graphics& g)

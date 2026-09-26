@@ -17,7 +17,11 @@ namespace nova
 class MonitorStage
 {
 public:
-    void prepare (double sr, int latencySamples, int maxBlock);
+    // maxLatency: capacity for later setLatency() calls (e.g. hosted plugins added at run time)
+    void prepare (double sr, int latencySamples, int maxBlock, int maxLatency = 0);
+    // Audio thread: realign the dry path to a new total latency (clamped to the prepared capacity).
+    void setLatency (int samples) noexcept { latency = std::clamp (samples, 0, capacity); }
+    int getLatency() const noexcept { return latency; }
     void reset();
 
     struct Flags { bool monitorA = false, loudnessMatch = true, delta = false, bypass = false; };
@@ -31,7 +35,7 @@ public:
 
 private:
     double sr = 48000;
-    int latency = 0;
+    int latency = 0, capacity = 0;
     dsp::DelayLine dryDelay;
     dsp::KWeighting kDry, kWet;
     float msDry = 0.f, msWet = 0.f, msCoeff = 0.f;

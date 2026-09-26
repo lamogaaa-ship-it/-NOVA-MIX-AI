@@ -6,6 +6,7 @@
 #include "AudioCapture.h"
 #include "MonitorStage.h"
 #include "../dsp/NovaChain.h"
+#include "../hosting/HostedRack.h"
 
 #include <atomic>
 #include <memory>
@@ -90,6 +91,11 @@ public:
     TransportSnapshot getTransport() const noexcept;
     double getPreparedSampleRate() const noexcept { return preparedRate.load(); }
     int getChainLatency() const noexcept { return chainLatency.load(); }
+    // NOVA's own chain latency plus the hosted plugin rack (what the host is told)
+    int getTotalLatency() const noexcept { return chainLatency.load() + rack.getLatencySamples(); }
+    hosting::HostedRack& getHostedRack() noexcept { return rack; }
+    // Message thread: re-read hosted plugin latencies and report the total to the host.
+    void updateHostedLatency();
     NovaEngine& getEngine() noexcept { return *engine; }
     bool isPrepared() const noexcept { return preparedRate.load() > 0.0; }
 
@@ -102,6 +108,7 @@ private:
     std::array<juce::RangedAudioParameter*, P::Count> paramObjects {};
 
     dsp::NovaChain chain;
+    hosting::HostedRack rack;
     MonitorStage monitor;
     AudioCapture capture;
     RealtimeMeters meters;
@@ -116,6 +123,10 @@ private:
     std::atomic<int> tSigNum { 4 }, tSigDen { 4 };
 
     std::unique_ptr<NovaEngine> engine;
+    std::shared_ptr<bool> alive = std::make_shared<bool> (true);
+    struct CallbackTimer : juce::Timer { std::function<void()> fn; void timerCallback() override { if (fn) fn(); } };
+    CallbackTimer rackWatch;   // message thread: follows hosted plugins' latency changes
+    void restoreRack (const juce::ValueTree& rackState);
 
     void processInternal (juce::AudioBuffer<float>& buffer, bool forceBypass) noexcept;
     void updateTransport() noexcept;

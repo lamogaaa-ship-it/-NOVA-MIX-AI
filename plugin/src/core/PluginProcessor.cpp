@@ -64,11 +64,36 @@ NovaAudioProcessor::NovaAudioProcessor()
         jassert (paramPtrs[(size_t) i] != nullptr);
     }
     engine = std::make_unique<NovaEngine> (*this);
+    rack.onChanged = [this]
+    {
+        const int total = getTotalLatency();
+        if (total != getLatencySamples()) setLatencySamples (total);
+    };
+    rackWatch.fn = [this] { if (rack.hasActiveSlots()) updateHostedLatency(); };
+    rackWatch.startTimer (500);
 }
 
 NovaAudioProcessor::~NovaAudioProcessor()
 {
+    *alive = false;
+    rackWatch.stopTimer();
+    rack.onChanged = nullptr;
     engine.reset();   // stop worker threads before the realtime objects go away
+}
+
+void NovaAudioProcessor::updateHostedLatency()
+{
+    rack.refreshLatency();
+    const int total = getTotalLatency();
+    if (total != getLatencySamples()) setLatencySamples (total);
+}
+
+void NovaAudioProcessor::restoreRack (const juce::ValueTree& rackState)
+{
+    auto problems = rack.restoreState (rackState, engine != nullptr ? &engine->getPluginCatalog() : nullptr);
+    if (engine != nullptr)
+        for (auto& p : problems)
+            engine->postStatus ("Hosted plugin could not be restored - " + p + ". The rest of the session loaded normally.");
 }
 
 //==============================================================================
@@ -77,13 +102,14 @@ void NovaAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     const int block = std::max (1, std::min (samplesPerBlock, kMaxInternalBlock));
     chain.prepare (sampleRate, block);
     const int latency = chain.getLatencySamples();
-    monitor.prepare (sampleRate, latency, kMaxInternalBlock);
+    rack.prepare (sampleRate, kMaxInternalBlock);
+    monitor.prepare (sampleRate, latency + rack.getLatencySamples(), kMaxInternalBlock, latency + hosting::HostedRack::kMaxLatency);
     dryScratch.setSize (2, kMaxInternalBlock, false, true, false);
     capture.prepare ((int) (sampleRate * 2.0) + kMaxInternalBlock);
     ctx = {};
     ctx.sampleRate = sampleRate;
     chainLatency.store (latency);
-    setLatencySamples (latency);
+    setLatencySamples (latency + rack.getLatencySamples());
     preparedRate.store (sampleRate);
     if (engine != nullptr)
         engine->audioPrepared (sampleRate, samplesPerBlock);
@@ -213,6 +239,8 @@ void NovaAudioProcessor::processInternal (juce::AudioBuffer<float>& buffer, bool
     flags.bypass = forceBypass || s.on (P::Bypass);
 
     float inPk[2] = { 0, 0 }, inSq[2] = { 0, 0 }, outPk[2] = { 0, 0 }, outSq[2] = { 0, 0 };
+    const bool hosting = rack.hasActiveSlots();
+    monitor.setLatency (chainLatency.load (std::memory_order_relaxed) + rack.getLatencySamples());
 
     for (int offset = 0; offset < total; offset += kMaxInternalBlock)
     {
@@ -232,6 +260,8 @@ void NovaAudioProcessor::processInternal (juce::AudioBuffer<float>& buffer, bool
         }
 
         chain.process (ch, numCh, n, s, order, ctx);
+        if (hosting)
+            rack.process (ch, numCh, n);
         if (ctx.hasPpq)
             ctx.ppqAtBlockStart += n * ctx.bpm / 60.0 / ctx.sampleRate;
 
@@ -293,6 +323,10 @@ void NovaAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     if (engine != nullptr)
         root.appendChild (engine->saveState(), nullptr);
 
+    auto rackState = rack.saveState();
+    if (rackState.getNumChildren() > 0)
+        root.appendChild (rackState, nullptr);
+
     if (auto xml = root.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -317,6 +351,22 @@ void NovaAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 
     if (engine != nullptr)
         engine->restoreState (root.getChildWithName ("SESSION"));
+
+    // Hosted plugins must be created on the message thread.
+    const auto rackState = root.getChildWithName ("HOSTED_RACK");
+    if (rackState.isValid() || rack.hasActiveSlots())
+    {
+        if (juce::MessageManager::existsAndIsCurrentThread())
+            restoreRack (rackState);
+        else
+        {
+            std::weak_ptr<bool> weak = alive;
+            juce::MessageManager::callAsync ([this, weak, rackState]
+            {
+                if (auto a = weak.lock(); a != nullptr && *a) restoreRack (rackState);
+            });
+        }
+    }
 }
 
 juce::AudioProcessorEditor* NovaAudioProcessor::createEditor()

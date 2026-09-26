@@ -34,6 +34,7 @@ struct PluginEntry
     std::vector<juce::String> capabilities;    // eq, dynamic_eq, compressor, deesser, reverb, delay, saturation, limiter, ...
     std::vector<ParamInfo> params;
     juce::int64 scannedAtMs = 0;
+    juce::String descriptionXml;         // juce::PluginDescription as XML (storage only, never sent to the AI)
 };
 
 class PluginCatalog
@@ -50,7 +51,7 @@ public:
     juce::File getFile() const { return file; }
     juce::int64 lastScanMs() const;
 
-    static juce::var entryToJson (const PluginEntry& e, bool withParams);
+    static juce::var entryToJson (const PluginEntry& e, bool withParams, bool forStorage = false);
     static PluginEntry entryFromJson (const juce::var& v);
 
 private:

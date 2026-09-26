@@ -39,6 +39,7 @@ How you work
 - Respect the user's learned preferences (get_user_preferences) as a gentle bias, never over evidence.
 - A question is not a request to change anything: answer it from the analysis.
 - Corrections like "no, now it's too harsh" refer to your previous action (see the session history in the context block); revert_previous_action can put back part of it.
+- Third-party plugins the user loaded into NOVA's rack (plugin_rack_after_chain in the context block) can be read and adjusted with the plugin rack tools. Prefer NOVA's built-in modules, whose results you can verify with renders; use a rack plugin when the user asks for it by name or it offers something the built-in modules cannot, and say that its effect is verified by listening again.
 
 Your final answer (after the tools)
 - Reply in the user's language and dialect (for example Egyptian Arabic if they write Egyptian Arabic).
@@ -89,6 +90,13 @@ juce::var CloudEngineer::contextBlock (const EngineerContext& ctx, const std::st
         if (hist.isNotEmpty()) o->setProperty ("session_history_newest_first", hist);
     }
     if (ctx.bias.evidenceCount > 0) o->setProperty ("user_taste", ctx.userPreferenceSummary);
+    if (! ctx.rack.empty())
+    {
+        juce::Array<juce::var> rack;
+        for (auto& s : ctx.rack)
+            rack.add (juce::String (s.info.slot) + ": " + s.info.name + " (" + s.info.manufacturer + ")" + (s.info.bypassed ? " [bypassed]" : ""));
+        o->setProperty ("plugin_rack_after_chain", rack);
+    }
     const auto parsed = parseRequest (request);
     o->setProperty ("user_language", juce::String (parsed.language));
     return juce::var (o);
@@ -154,7 +162,7 @@ EngineerOutcome CloudEngineer::handle (const std::string& request, EngineerConte
     }
 
     static const juce::String sys = systemPrompt();
-    const auto toolDefs = AgentToolbox::toolDefinitions (plugins != nullptr && plugins->size() > 0);
+    const auto toolDefs = AgentToolbox::toolDefinitions (plugins != nullptr && plugins->size() > 0, ! ctx.rack.empty());
 
     auto buildBody = [&] (bool withFallbacks)
     {
@@ -335,7 +343,9 @@ EngineerOutcome CloudEngineer::handle (const std::string& request, EngineerConte
     out.settings = final;
     out.order = session.chainOrder();
     out.orderChanged = out.order != ctx.order;
-    out.changed = ! diffSettings (ctx.current, final).empty() || out.orderChanged;
+    out.rackChanges = tools.rackChanges;
+    out.rackBypass = tools.rackBypass;
+    out.changed = ! diffSettings (ctx.current, final).empty() || out.orderChanged || ! out.rackChanges.empty() || ! out.rackBypass.empty();
     out.treatments = tools.treatments;
     for (auto& w : tools.warnings) out.warnings.push_back (w);
     out.match = tools.lastMatch;

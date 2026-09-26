@@ -125,18 +125,52 @@ const char* kPluginToolSchemas = R"JSON([
  "input_schema": {"type": "object", "properties": {"plugin_id": {"type": "string"}}, "required": ["plugin_id"]}
 }
 ])JSON";
+
+const char* kRackToolSchemas = R"JSON([
+{
+ "name": "get_plugin_rack",
+ "description": "Return the third-party plugins loaded in NOVA's plugin rack (they run after NOVA's built-in chain): slot, name, capabilities, bypass, latency, and live parameter values as normalised 0-1 numbers plus the plugin's own display text. Use query to filter parameters by name. Read this before changing any rack plugin; never guess parameter indices.",
+ "input_schema": {"type": "object", "properties": {
+   "slot": {"type": "integer", "description": "Only this slot"},
+   "query": {"type": "string", "description": "Only parameters whose name contains this text (case-insensitive)"}
+ }}
+},
+{
+ "name": "set_plugin_rack_parameters",
+ "description": "Change parameters of a plugin in NOVA's rack. Values are normalised 0-1 (see the value and display text from get_plugin_rack). Continuous parameters move at most 0.25 per call; stepped parameters snap to their steps. Changes are applied to the live plugin together with the rest of your turn and are undoable. NOVA's offline renders do not include third-party plugins, so render_and_measure does not show these changes: tell the user and suggest listening again (LISTEN) to verify.",
+ "input_schema": {"type": "object", "properties": {
+   "slot": {"type": "integer"},
+   "changes": {"type": "array", "items": {"type": "object", "properties": {
+      "index": {"type": "integer", "description": "Parameter index from get_plugin_rack"},
+      "value": {"type": "number", "description": "Normalised target 0-1"}
+   }, "required": ["index", "value"]}},
+   "reason": {"type": "string"}
+ }, "required": ["slot", "changes", "reason"]}
+},
+{
+ "name": "set_plugin_rack_bypass",
+ "description": "Bypass or re-enable a plugin in NOVA's rack (latency-compensated crossfade, undoable).",
+ "input_schema": {"type": "object", "properties": {
+   "slot": {"type": "integer"},
+   "bypassed": {"type": "boolean"}
+ }, "required": ["slot", "bypassed"]}
+}
+])JSON";
 } // namespace
 
 //==============================================================================
-juce::var AgentToolbox::toolDefinitions (bool includePluginTools)
+juce::var AgentToolbox::toolDefinitions (bool includePluginTools, bool includeRackTools)
 {
     static const juce::var base = juce::JSON::parse (kToolSchemas);
     static const juce::var plug = juce::JSON::parse (kPluginToolSchemas);
-    jassert (base.isArray() && plug.isArray());
+    static const juce::var rack = juce::JSON::parse (kRackToolSchemas);
+    jassert (base.isArray() && plug.isArray() && rack.isArray());
     juce::Array<juce::var> all;
     for (auto& t : *base.getArray()) all.add (t);
     if (includePluginTools)
         for (auto& t : *plug.getArray()) all.add (t);
+    if (includeRackTools)
+        for (auto& t : *rack.getArray()) all.add (t);
     return all;
 }
 
@@ -162,6 +196,9 @@ juce::var AgentToolbox::execute (const juce::String& name, const juce::var& inpu
     else if (name == "get_user_preferences") result = userPreferences();
     else if (name == "search_available_plugins") result = searchPlugins (input, isError);
     else if (name == "inspect_plugin_parameters") result = inspectPlugin (input, isError);
+    else if (name == "get_plugin_rack") result = getRack (input, isError);
+    else if (name == "set_plugin_rack_parameters") result = setRackParameters (input, isError);
+    else if (name == "set_plugin_rack_bypass") result = setRackBypass (input, isError);
     else
     {
         isError = true;
@@ -574,6 +611,138 @@ juce::var AgentToolbox::inspectPlugin (const juce::var& in, bool& err)
     const auto* p = plugins != nullptr ? plugins->find (in.getProperty ("plugin_id", "").toString()) : nullptr;
     if (p == nullptr) { err = true; auto e = obj(); put (e, "error", "unknown plugin id"); return e; }
     return hosting::PluginCatalog::entryToJson (*p, true);
+}
+
+//==============================================================================
+namespace
+{
+juce::var errorJson (bool& err, const juce::String& msg) { err = true; auto e = obj(); put (e, "error", msg); return e; }
+
+hosting::RackSlotView* findSlot (std::vector<hosting::RackSlotView>& rack, int slot)
+{
+    for (auto& s : rack)
+        if (s.info.slot == slot) return &s;
+    return nullptr;
+}
+} // namespace
+
+juce::var AgentToolbox::getRack (const juce::var& in, bool& err)
+{
+    if (ctx.rack.empty())
+        return errorJson (err, "no plugins are loaded in NOVA's rack. The user can load scanned plugins from the plugin rack in NOVA's advanced view.");
+    const int onlySlot = in.hasProperty ("slot") ? (int) in["slot"] : -1;
+    const auto query = in.getProperty ("query", "").toString().trim();
+    juce::Array<juce::var> slots;
+    for (auto& s : ctx.rack)
+    {
+        if (onlySlot >= 0 && s.info.slot != onlySlot) continue;
+        auto o = obj();
+        put (o, "slot", s.info.slot);
+        put (o, "name", s.info.name);
+        put (o, "manufacturer", s.info.manufacturer);
+        put (o, "format", s.info.format);
+        juce::StringArray caps;
+        for (auto& c : s.capabilities) caps.add (c);
+        put (o, "capabilities", caps.joinIntoString (","));
+        put (o, "bypassed", s.info.bypassed);
+        put (o, "latency_samples", s.info.latencySamples);
+        juce::Array<juce::var> ps;
+        int shown = 0;
+        for (auto& p : s.params)
+        {
+            if (query.isNotEmpty() && ! p.name.containsIgnoreCase (query)) continue;
+            if (++shown > 80) break;
+            auto po = obj();
+            put (po, "index", p.index);
+            put (po, "name", p.name);
+            put (po, "value", std::round (p.value * 1000.0) / 1000.0);
+            if (p.text.isNotEmpty()) put (po, "display", p.text + (p.label.isNotEmpty() ? " " + p.label : juce::String()));
+            if (p.numSteps > 0) put (po, "steps", p.numSteps);
+            const auto mapped = hosting::CapabilityMapper::conceptFor (p.name, p.label);
+            if (mapped.first.isNotEmpty() && mapped.second >= 0.5f) put (po, "concept", mapped.first);
+            ps.add (po);
+        }
+        put (o, "parameters", ps);
+        if (shown > 80) put (o, "note", "more parameters exist - narrow with query");
+        slots.add (o);
+    }
+    auto o = obj();
+    put (o, "rack", slots);
+    put (o, "position", "after NOVA's built-in chain, before output monitoring");
+    return o;
+}
+
+juce::var AgentToolbox::setRackParameters (const juce::var& in, bool& err)
+{
+    auto* s = findSlot (ctx.rack, (int) in.getProperty ("slot", -1));
+    if (s == nullptr) return errorJson (err, "no plugin in that rack slot - call get_plugin_rack");
+    const auto* changes = in.getProperty ("changes", {}).getArray();
+    if (changes == nullptr || changes->isEmpty()) return errorJson (err, "changes must be a non-empty array");
+    juce::Array<juce::var> results;
+    int applied = 0;
+    for (auto& c : *changes)
+    {
+        const int idx = c.getProperty ("index", -1);
+        auto r = obj();
+        put (r, "index", idx);
+        auto it = std::find_if (s->params.begin(), s->params.end(), [idx] (auto& p) { return p.index == idx; });
+        const auto v = c.getProperty ("value", {});
+        if (it == s->params.end()) { put (r, "status", "rejected: unknown parameter index"); results.add (r); continue; }
+        if (! (v.isDouble() || v.isInt() || v.isInt64())) { put (r, "status", "rejected: value must be a number 0-1"); results.add (r); continue; }
+        const float requested = (float) (double) v;
+        float target = juce::jlimit (0.f, 1.f, requested);
+        juce::String note;
+        if (it->numSteps > 1)
+            target = std::round (target * (float) (it->numSteps - 1)) / (float) (it->numSteps - 1);
+        else if (std::abs (target - it->value) > kMaxRackStep)
+        {
+            target = it->value + std::copysign (kMaxRackStep, target - it->value);
+            note = "limited to a 0.25 step this call";
+        }
+        // merge with an earlier change of the same parameter this turn (keep the original 'before')
+        auto prev = std::find_if (rackChanges.begin(), rackChanges.end(), [&] (auto& rc) { return rc.slot == s->info.slot && rc.index == idx; });
+        if (prev != rackChanges.end()) prev->after = target;
+        else
+        {
+            hosting::RackParamChange rc;
+            rc.slot = s->info.slot;
+            rc.index = idx;
+            rc.entryId = s->info.entryId;
+            rc.paramName = it->name;
+            rc.before = it->value;
+            rc.after = target;
+            rackChanges.push_back (rc);
+        }
+        it->value = target;
+        it->text = {};   // the plugin's display text is only known after it applies the value
+        put (r, "name", it->name);
+        put (r, "requested", requested);
+        put (r, "applied", std::round (target * 1000.0) / 1000.0);
+        put (r, "status", note.isEmpty() ? juce::String ("ok") : "clamped: " + note);
+        results.add (r);
+        ++applied;
+    }
+    if (applied == 0) err = true;
+    auto o = obj();
+    put (o, "results", results);
+    put (o, "verification", "not rendered offline: third-party plugins run only live. Ask the user to LISTEN again to verify.");
+    return o;
+}
+
+juce::var AgentToolbox::setRackBypass (const juce::var& in, bool& err)
+{
+    auto* s = findSlot (ctx.rack, (int) in.getProperty ("slot", -1));
+    if (s == nullptr) return errorJson (err, "no plugin in that rack slot - call get_plugin_rack");
+    const auto b = in.getProperty ("bypassed", {});
+    if (! b.isBool()) return errorJson (err, "bypassed must be true or false");
+    s->info.bypassed = (bool) b;
+    auto prev = std::find_if (rackBypass.begin(), rackBypass.end(), [&] (auto& rb) { return rb.slot == s->info.slot; });
+    if (prev != rackBypass.end()) prev->bypassed = (bool) b;
+    else rackBypass.push_back ({ s->info.slot, s->info.entryId, (bool) b });
+    auto o = obj();
+    put (o, "slot", s->info.slot);
+    put (o, "bypassed", (bool) b);
+    return o;
 }
 
 } // namespace nova::ai

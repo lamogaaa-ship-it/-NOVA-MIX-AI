@@ -270,6 +270,16 @@ void NovaEngine::handleRequest (const Request& req)
                 ctx.experienceSummary << "similarity " << juce::String (sim, 2) << ": \"" << juce::String (e.request) << "\" -> "
                                       << juce::String (e.treatments.empty() ? "" : e.treatments.front()) << (e.accepted > 0 ? " (accepted)" : "") << "\n";
     }
+    hosting::RackSnapshot rackBefore;
+    runOnMessageThread ([&]
+    {
+        auto& rack = processor.getHostedRack();
+        if (rack.hasActiveSlots())
+        {
+            ctx.rack = rack.view (pluginCatalog.get());
+            rackBefore = rack.captureSnapshot();
+        }
+    });
     ctx.cancel = &cancelFlag;
     ctx.onStatus = [this] (ai::AgentPhase p, const std::string& d) { setPhase (p, juce::String (d)); };
 
@@ -320,6 +330,7 @@ void NovaEngine::handleRequest (const Request& req)
         before.label = "Before: " + text;
         before.settings = ctx.current;
         before.order = ctx.order;
+        before.rack = rackBefore;
         ActionRecord rec;
         rec.request = text;
         rec.engine = usedCloud ? out.engine : "offline";
@@ -332,8 +343,17 @@ void NovaEngine::handleRequest (const Request& req)
         actionId = memory.add (rec);
         before.actionId = actionId;
         snapshots.push (before);
-        applyToProcessor (out.settings, out.order);
+        applyToProcessor (out.settings, out.order, nullptr, &out.rackChanges, &out.rackBypass);
         for (auto& c : rec.changes) changes.add (ai::describeChange (c));
+        for (auto& rc : out.rackChanges)
+        {
+            juce::String pluginName = "Rack slot " + juce::String (rc.slot + 1);
+            for (auto& sv : ctx.rack)
+                if (sv.info.slot == rc.slot) pluginName = sv.info.name;
+            changes.add (pluginName + ": " + rc.paramName + " " + juce::String (rc.before, 2) + " -> " + juce::String (rc.after, 2));
+        }
+        for (auto& rb : out.rackBypass)
+            changes.add ("Rack slot " + juce::String (rb.slot + 1) + (rb.bypassed ? " bypassed" : " enabled"));
         if (out.orderChanged) changes.add ("Chain order changed");
         if (out.match != nullptr) references.setLastMatch (out.match);
 
@@ -375,22 +395,45 @@ void NovaEngine::postAssistant (const juce::String& text, const juce::String& en
     conversation.add (m);
 }
 
-void NovaEngine::applyToProcessor (const ChainSettings& s, const ChainOrder& order)
+void NovaEngine::postStatus (const juce::String& text)
 {
-    auto doApply = [this, s, order]
+    ai::ChatMessage m;
+    m.role = ai::ChatMessage::Role::Status;
+    m.text = text;
+    conversation.add (m);
+}
+
+void NovaEngine::runOnMessageThread (std::function<void()> fn)
+{
+    if (applyDirectly || juce::MessageManager::existsAndIsCurrentThread() || juce::MessageManager::getInstanceWithoutCreating() == nullptr)
+    {
+        fn();
+        return;
+    }
+    struct Job { std::function<void()> fn; juce::WaitableEvent done; std::atomic<bool> claimed { false }; };
+    auto job = std::make_shared<Job>();
+    job->fn = std::move (fn);
+    juce::MessageManager::callAsync ([job] { if (! job->claimed.exchange (true)) job->fn(); job->done.signal(); });
+    if (! job->done.wait (3000))
+    {
+        if (! job->claimed.exchange (true)) job->fn();   // no message loop pumping (offline render host)
+        else job->done.wait (-1);                         // already running on the message thread
+    }
+}
+
+void NovaEngine::applyToProcessor (const ChainSettings& s, const ChainOrder& order, const hosting::RackSnapshot* rack,
+                                   const std::vector<hosting::RackParamChange>* rackChanges, const std::vector<hosting::RackBypassChange>* rackBypass)
+{
+    runOnMessageThread ([&]
     {
         processor.applySettings (s);
         processor.setChainOrder (order);
-    };
-    if (applyDirectly || juce::MessageManager::existsAndIsCurrentThread())
-    {
-        doApply();
-        return;
-    }
-    auto done = std::make_shared<juce::WaitableEvent>();
-    juce::MessageManager::callAsync ([doApply, done] { doApply(); done->signal(); });
-    if (! done->wait (3000))
-        doApply();   // no message loop pumping (offline render host): parameter atomics are thread safe
+        auto& r = processor.getHostedRack();
+        if (rack != nullptr) r.restoreSnapshot (*rack);
+        if (rackChanges != nullptr || rackBypass != nullptr)
+            r.applyChanges (rackChanges != nullptr ? *rackChanges : std::vector<hosting::RackParamChange> {},
+                            rackBypass != nullptr ? *rackBypass : std::vector<hosting::RackBypassChange> {});
+    });
 }
 
 bool NovaEngine::undo()
@@ -398,9 +441,10 @@ bool NovaEngine::undo()
     Snapshot cur;
     cur.settings = processor.getCurrentSettings();
     cur.order = processor.getChainOrder();
+    runOnMessageThread ([&] { cur.rack = processor.getHostedRack().captureSnapshot(); });
     auto s = snapshots.undo (cur);
     if (! s) return false;
-    applyToProcessor (s->settings, s->order);
+    applyToProcessor (s->settings, s->order, &s->rack);
     if (s->actionId > 0)
     {
         memory.markUndone (s->actionId, true);
@@ -416,9 +460,10 @@ bool NovaEngine::redo()
     Snapshot cur;
     cur.settings = processor.getCurrentSettings();
     cur.order = processor.getChainOrder();
+    runOnMessageThread ([&] { cur.rack = processor.getHostedRack().captureSnapshot(); });
     auto s = snapshots.redo (cur);
     if (! s) return false;
-    applyToProcessor (s->settings, s->order);
+    applyToProcessor (s->settings, s->order, &s->rack);
     if (s->actionId > 0) memory.markUndone (s->actionId, false);
     return true;
 }

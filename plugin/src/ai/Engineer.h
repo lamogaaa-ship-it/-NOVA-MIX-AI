@@ -31,6 +31,7 @@ struct EngineerContext
     std::atomic<bool>* cancel = nullptr;
     std::function<void (AgentPhase, const std::string&)> onStatus;
     juce::String userPreferenceSummary, experienceSummary;
+    std::vector<hosting::RackSlotView> rack;   // third-party plugins loaded in NOVA's rack (live values)
 };
 
 struct EngineerOutcome
@@ -52,6 +53,8 @@ struct EngineerOutcome
     bool undoRequested = false, redoRequested = false;
     std::shared_ptr<const reference::MatchResult> match;
     juce::var trace;                          // tool / step trace for diagnostics
+    std::vector<hosting::RackParamChange> rackChanges;    // validated edits to hosted plugins
+    std::vector<hosting::RackBypassChange> rackBypass;
     std::string requestText;
 };
 

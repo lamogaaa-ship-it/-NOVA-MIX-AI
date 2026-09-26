@@ -47,6 +47,7 @@ public:
     bool canUndo() const { return snapshots.canUndo(); }
     bool canRedo() const { return snapshots.canRedo(); }
     void giveFeedback (int messageId, int value);
+    void postStatus (const juce::String& text);
 
     juce::StringArray suggestions() const;
     juce::String engineLabel() const;           // honest: which engine will answer
@@ -91,7 +92,11 @@ private:
     void handleRequest (const Request& r);
     std::shared_ptr<const analysis::AnalysisResult> ensureWorkingAudio();
     void setPhase (ai::AgentPhase p, const juce::String& detail = {});
-    void applyToProcessor (const ChainSettings& s, const ChainOrder& order);
+    void applyToProcessor (const ChainSettings& s, const ChainOrder& order, const hosting::RackSnapshot* rack = nullptr,
+                           const std::vector<hosting::RackParamChange>* rackChanges = nullptr, const std::vector<hosting::RackBypassChange>* rackBypass = nullptr);
+    // Runs fn on the message thread and waits (hosted plugins must be touched there). Falls back to
+    // the calling thread when no message loop is pumping (tests / offline hosts).
+    void runOnMessageThread (std::function<void()> fn);
     void postAssistant (const juce::String& text, const juce::String& eng, const juce::StringArray& changes, const juce::StringArray& warnings,
                         const juce::String& engine, int actionId, bool canUndo, bool isError = false);
     TasteContext tasteContext (const std::string& source) const;
