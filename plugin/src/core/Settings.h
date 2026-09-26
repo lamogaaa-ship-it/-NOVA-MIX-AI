@@ -31,6 +31,7 @@ struct EngineerSettings
     bool diagnosticsVisible = false;
     bool speakReplies = true;                  // read replies aloud when the request was spoken (needs companion TTS)
     float uiScale = 1.0f;
+    float editorScale = 0.f;                   // last editor size chosen by the user (fraction of 1440x1080); 0 = fit the screen
 
     juce::String effectiveApiKey() const;
     juce::String effectiveProvider() const;   // resolves "auto"

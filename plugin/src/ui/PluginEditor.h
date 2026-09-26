@@ -12,6 +12,7 @@ class NovaEditor final : public juce::AudioProcessorEditor
 {
 public:
     static constexpr int kBaseW = 1440, kBaseH = 1080;
+    static constexpr float kMinScale = 0.55f;
 
     explicit NovaEditor (NovaAudioProcessor& p);
     ~NovaEditor() override;

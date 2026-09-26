@@ -272,15 +272,34 @@ NovaEditor::NovaEditor (NovaAudioProcessor& p)
     content->setBounds (0, 0, kBaseW, kBaseH);
     addAndMakeVisible (*content);
 
-    const float uiScale = SettingsStore::shared().get().uiScale;
+    const auto settings = SettingsStore::shared().get();
     setResizable (true, true);
-    setResizeLimits ((int) (kBaseW * 0.55f), (int) (kBaseH * 0.55f), (int) (kBaseW * 1.6f), (int) (kBaseH * 1.6f));
+    setResizeLimits ((int) (kBaseW * kMinScale), (int) (kBaseH * kMinScale), (int) (kBaseW * 1.6f), (int) (kBaseH * 1.6f));
     getConstrainer()->setFixedAspectRatio ((double) kBaseW / (double) kBaseH);
-    setSize ((int) (kBaseW * 0.84f * uiScale), (int) (kBaseH * 0.84f * uiScale));
+
+    // Open at the user's last size, or 84 %, but never larger than the screen (a 13" MacBook is
+    // 1440x900 points; the host adds its own window chrome).
+    float scale = settings.editorScale > 0.f ? settings.editorScale : 0.84f * settings.uiScale;
+    if (auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+    {
+        const auto area = display->userBounds;
+        const float fit = std::min ((float) area.getWidth() * 0.94f / (float) kBaseW, (float) (area.getHeight() - 70) * 0.94f / (float) kBaseH);
+        if (fit > 0.f) scale = std::min (scale, fit);
+    }
+    scale = std::max (scale, kMinScale);
+    setSize (juce::roundToInt ((float) kBaseW * scale), juce::roundToInt ((float) kBaseH * scale));
 }
 
 NovaEditor::~NovaEditor()
 {
+    // remember the size the user chose for next time
+    auto s = SettingsStore::shared().get();
+    const float scale = (float) getWidth() / (float) kBaseW;
+    if (std::abs (s.editorScale - scale) > 0.005f)
+    {
+        s.editorScale = scale;
+        SettingsStore::shared().set (s);
+    }
     juce::LookAndFeel::setDefaultLookAndFeel (nullptr);
     setLookAndFeel (nullptr);
 }
