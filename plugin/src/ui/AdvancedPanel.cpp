@@ -193,7 +193,7 @@ SettingsOverlay::SettingsOverlay (NovaAudioProcessor& p) : proc (p), engine (p.g
     apiKey.setTextToShowWhenEmpty ("sk-ant-... (or set ANTHROPIC_API_KEY)", Colours::textMute);
     model.setTextToShowWhenEmpty ("claude-fable-5-1", Colours::textMute);
     cloudUrl.setTextToShowWhenEmpty ("https://api.your-nova-backend.com", Colours::textMute);
-    for (auto* t : { &allowCloud, &learning, &experience, &fallbacks, &diagnostics }) addAndMakeVisible (*t);
+    for (auto* t : { &allowCloud, &learning, &experience, &fallbacks, &diagnostics, &speak }) addAndMakeVisible (*t);
     save.onClick = [this]
     {
         auto s = engine.getSettings();
@@ -210,6 +210,7 @@ SettingsOverlay::SettingsOverlay (NovaAudioProcessor& p) : proc (p), engine (p.g
         s.experienceEnabled = experience.getToggleState();
         s.useServerFallbacks = fallbacks.getToggleState();
         s.diagnosticsVisible = diagnostics.getToggleState();
+        s.speakReplies = speak.getToggleState();
         s.explanationMode = explanation.getSelectedItemIndex() == 1 ? "engineer" : "simple";
         engine.setSettings (s);
         statusText = "Saved. Engine: " + engine.engineLabel();
@@ -274,6 +275,7 @@ void SettingsOverlay::refresh()
     experience.setToggleState (s.experienceEnabled, juce::dontSendNotification);
     fallbacks.setToggleState (s.useServerFallbacks, juce::dontSendNotification);
     diagnostics.setToggleState (s.diagnosticsVisible, juce::dontSendNotification);
+    speak.setToggleState (s.speakReplies, juce::dontSendNotification);
     explanation.setSelectedItemIndex (s.explanationMode == "engineer" ? 1 : 0, juce::dontSendNotification);
     if (scanning && ! scanner.isRunning())
     {
@@ -305,6 +307,7 @@ void SettingsOverlay::resized()
     learning.setBounds (row (col2, 30));
     experience.setBounds (row (col2, 30));
     diagnostics.setBounds (row (col2, 30));
+    speak.setBounds (row (col2, 30));
     auto buttons = row (col2, 38);
     clearLearning.setBounds (buttons.removeFromLeft (190));
     buttons.removeFromLeft (10);

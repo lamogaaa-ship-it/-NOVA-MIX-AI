@@ -70,6 +70,7 @@ void SettingsStore::load()
     str ("companion_url", settings.companionUrl);
     bl ("companion_enabled", settings.companionEnabled);
     bl ("diagnostics_visible", settings.diagnosticsVisible);
+    bl ("speak_replies", settings.speakReplies);
     if (v.hasProperty ("ui_scale")) settings.uiScale = std::clamp ((float) (double) v.getProperty ("ui_scale", 1.0), 0.6f, 2.0f);
 }
 
@@ -93,6 +94,7 @@ void SettingsStore::save() const
     o->setProperty ("companion_url", settings.companionUrl);
     o->setProperty ("companion_enabled", settings.companionEnabled);
     o->setProperty ("diagnostics_visible", settings.diagnosticsVisible);
+    o->setProperty ("speak_replies", settings.speakReplies);
     o->setProperty ("ui_scale", settings.uiScale);
     file.getParentDirectory().createDirectory();
     file.replaceWithText (juce::JSON::toString (juce::var (o)));

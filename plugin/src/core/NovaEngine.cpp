@@ -377,6 +377,14 @@ void NovaEngine::handleRequest (const Request& req)
 
     const juce::String engineName = usedCloud ? juce::String (out.engine) : juce::String ("offline");
     postAssistant (juce::String::fromUTF8 (out.reply.c_str()), juce::String::fromUTF8 (out.replyEngineer.c_str()), changes, warnings, engineName, actionId, out.changed);
+    // Spoken request -> spoken answer (the simple explanation only), when the companion can speak.
+    if (req.source == Source::Voice && settings.speakReplies && companion != nullptr && companion->lastHealth().tts)
+    {
+        const auto spoken = juce::String::fromUTF8 (out.reply.c_str());
+        bool arabic = false;
+        for (auto c : spoken) if (c >= 0x0600 && c <= 0x06FF) { arabic = true; break; }
+        companion->speak (spoken, arabic ? "ar" : "en");
+    }
     setPhase (out.changed ? ai::AgentPhase::Complete : ai::AgentPhase::Idle);
 }
 

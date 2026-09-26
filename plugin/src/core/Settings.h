@@ -29,6 +29,7 @@ struct EngineerSettings
     juce::String companionUrl = "http://127.0.0.1:47800";
     bool companionEnabled = true;
     bool diagnosticsVisible = false;
+    bool speakReplies = true;                  // read replies aloud when the request was spoken (needs companion TTS)
     float uiScale = 1.0f;
 
     juce::String effectiveApiKey() const;

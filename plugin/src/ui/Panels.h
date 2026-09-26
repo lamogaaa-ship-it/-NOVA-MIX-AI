@@ -265,7 +265,8 @@ private:
                        learning { "Learn my taste (stored on this computer)" },
                        experience { "Remember past situations (features only)" },
                        fallbacks { "Server-side refusal fallbacks" },
-                       diagnostics { "Show developer diagnostics" };
+                       diagnostics { "Show developer diagnostics" },
+                       speak { "Speak replies to voice requests (companion)" };
     NovaButton save { "Save", Icon::Check, NovaButton::Style::Pill }, close { {}, Icon::Close, NovaButton::Style::IconOnly },
                clearLearning { "Delete learned data", {}, NovaButton::Style::Pill },
                scanPlugins { "Scan plugins", {}, NovaButton::Style::Pill };
