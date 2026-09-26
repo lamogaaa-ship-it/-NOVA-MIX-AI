@@ -2,7 +2,7 @@
 
 ## Plug-in (C++, Catch2): `build/plugin/tests/NovaTests`
 
-38 test cases (≈144,500 assertions), grouped by tag:
+40 test cases (≈144,600 assertions), grouped by tag:
 
 | Tag | Covers |
 |---|---|
@@ -31,7 +31,7 @@ On Linux, run under `xvfb-run -a`.
 ## Python
 
 ```sh
-cd companion && pytest     # 13 tests: API, push-to-talk, TTS, embeddings, origin blocking, schema conformance
+cd companion && pytest     # 14 tests (+2 real-speech tests in CI): API, push-to-talk, TTS, embeddings, origin blocking, schema conformance
 cd backend && pytest       # 11 tests: auth, validation, caps, rate limit, error shape, prefs, SDK call shape, schema
 ```
 
