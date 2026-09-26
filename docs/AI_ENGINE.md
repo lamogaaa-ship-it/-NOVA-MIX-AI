@@ -42,6 +42,17 @@ The header shows **LOCAL** or **ONLINE** according to the engine that will actua
    - Reply with a SIMPLE explanation and an optional ENGINEER explanation, with the measured before/after numbers.
    - If the request was spoken, the reply is spoken too, through the companion's TTS.
 
+## Language
+
+Replies follow the language of the request:
+
+- An Arabic or Egyptian Arabic request (including Arabic mixed with English terms) gets an Egyptian Arabic SIMPLE explanation. It keeps the measured numbers and units (dB, Hz, LUFS).
+- ENGINEER details stay technical.
+- Status messages and the suggestion chips switch language too. Every chip is verified to be understood by the parser in both languages (`ai/Suggestions.h`, EngineerTests).
+- The cloud engineer is instructed to answer in the user's language and dialect.
+
+Push-to-talk has a **Voice language** setting (automatic / Arabic / English). Automatic detection chooses only between Arabic and English.
+
 ## Tools (cloud engineer)
 
 `analyze_audio`, `get_chain_state`, `run_treatment` (20 closed-loop routines), `set_parameters`, `set_module_enabled`, `reorder_chain`, `render_and_measure`, `compare_to_reference`, `match_reference`, `revert_previous_action`, `retrieve_knowledge`, `get_user_preferences`.
