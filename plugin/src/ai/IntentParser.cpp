@@ -106,7 +106,8 @@ ParsedRequest parseRequest (const std::string& raw)
 
     // language
     bool ar = false, lat = false;
-    for (auto p = juce::String::fromUTF8 (raw.c_str()).getCharPointer(); ! p.isEmpty(); ++p)
+    const auto rawText = juce::String::fromUTF8 (raw.c_str());   // must outlive the char pointer below
+    for (auto p = rawText.getCharPointer(); ! p.isEmpty(); ++p)
     {
         if (*p >= 0x0600 && *p <= 0x06FF) ar = true;
         else if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z')) lat = true;
