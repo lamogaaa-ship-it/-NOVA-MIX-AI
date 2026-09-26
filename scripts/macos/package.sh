@@ -9,8 +9,9 @@
 #        NOVA_INSTALLER_IDENTITY  "Developer ID Installer: ..." to sign the .pkg (optional)
 set -euo pipefail
 
-BUILD_DIR="${1:?build dir}"
-OUT_DIR="${2:?output dir}"
+BUILD_DIR="$(cd "${1:?build dir}" && pwd)"
+mkdir -p "${2:?output dir}"
+OUT_DIR="$(cd "$2" && pwd)"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 IDENTITY="${NOVA_CODESIGN_IDENTITY:--}"
 VERSION="$(sed -n 's/^project(NOVA_MIX_AI VERSION \([0-9.]*\).*/\1/p' "$ROOT/CMakeLists.txt")"

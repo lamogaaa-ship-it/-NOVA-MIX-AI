@@ -138,3 +138,36 @@ jobs:
           name: NOVA-Companion-macOS
           path: dist-companion/*
           if-no-files-found: error
+
+  complete:
+    # One disk image with the plug-in installer and the voice companion installer.
+    needs: [macos, companion]
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: NOVA-MIX-AI-macOS-installer
+          path: in/plugin
+      - uses: actions/download-artifact@v4
+        with:
+          name: NOVA-Companion-macOS
+          path: in/companion
+      - name: Build the complete disk image
+        run: |
+          VERSION="$(sed -n 's/^project(NOVA_MIX_AI VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          mkdir -p root out
+          cp in/plugin/*.pkg "root/1 - Install NOVA MIX AI.pkg"
+          cp in/companion/*.pkg "root/2 - Install NOVA Companion (voice, optional).pkg"
+          cp scripts/macos/resources/README.txt "root/READ ME FIRST.txt"
+          for attempt in 1 2 3 4 5; do
+            hdiutil create -volname "NOVA MIX AI $VERSION" -srcfolder root -ov -format UDZO "out/NOVA-MIX-AI-$VERSION-macOS-complete.dmg" && break
+            [ $attempt = 5 ] && exit 1; sleep $((attempt * 5))
+          done
+          hdiutil verify "out/NOVA-MIX-AI-$VERSION-macOS-complete.dmg"
+          (cd out && shasum -a 256 *.dmg | tee SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-MIX-AI-macOS-complete
+          path: out/*
+          if-no-files-found: error

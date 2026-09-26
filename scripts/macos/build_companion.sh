@@ -5,11 +5,11 @@
 #
 # usage: scripts/macos/build_companion.sh <out-dir>
 set -euo pipefail
-OUT="${1:?out dir}"
+mkdir -p "${1:?out dir}"
+OUT="$(cd "$1" && pwd)"          # absolute: the build changes directory below
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VERSION="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$ROOT/companion/nova_companion/__init__.py")"
 WORK="$(mktemp -d)"
-mkdir -p "$OUT"
 
 python3 -m venv "$WORK/venv"
 "$WORK/venv/bin/pip" install -q --upgrade pip

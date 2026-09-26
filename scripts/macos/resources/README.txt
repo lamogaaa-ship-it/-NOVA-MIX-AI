@@ -21,9 +21,12 @@ AI engineer
   a NOVA Cloud URL/token, or a Claude API key for developer builds. Audio never leaves
   your computer; only analysis numbers and your text are sent when the cloud engineer is on.
 
-Voice
-- Voice commands need the NOVA companion service, which is not part of this build yet.
-  The talk button shows "Voice off" until it is installed.
+Voice (optional)
+- Install "NOVA Companion" (second installer in the complete disk image) for push-to-talk in
+  English and Arabic and spoken replies. It runs in the background on this Mac only
+  (127.0.0.1) and starts at login. The first time you hold the talk button macOS asks for
+  microphone access, and the speech model (about 460 MB) downloads once.
+- Without it everything else works; the talk button shows "Voice off".
 
 Uninstall
 - Delete the three items listed above, and optionally ~/Library/Application Support/NOVA MIX AI.
