@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include "../analysis/AnalysisEngine.h"
+
 namespace nova
 {
 
@@ -19,7 +21,12 @@ public:
     juce::ValueTree saveState() const;
     void restoreState (const juce::ValueTree& session);
 
+    analysis::AnalysisEngine& getAnalysis() noexcept { return analysisEngine; }
+
     NovaAudioProcessor& processor;
+
+private:
+    analysis::AnalysisEngine analysisEngine;
 };
 
 } // namespace nova
