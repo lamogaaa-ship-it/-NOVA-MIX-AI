@@ -63,6 +63,11 @@ Code signing:
 - Without `NOVA_CODESIGN_IDENTITY`, the bundles are **ad-hoc** signed with the hardened runtime. They run on the machine they are installed on. The installer is not notarized, so Gatekeeper asks for confirmation the first time: right-click → Open.
 - Set `NOVA_CODESIGN_IDENTITY="Developer ID Application: …"` and `NOVA_INSTALLER_IDENTITY="Developer ID Installer: …"` to produce distributable signed builds. Notarize them afterwards (`xcrun notarytool submit … --wait`, then `xcrun stapler staple`).
 
+Entitlements:
+
+- `nova-plugin-scanner` (inside each bundle) and the Standalone app load other vendors' plug-ins, so they are signed with the hardened runtime plus `com.apple.security.cs.disable-library-validation` (`scripts/macos/host.entitlements`), as DAWs are.
+- Inside a DAW, NOVA runs with the DAW's own entitlements.
+
 ### GitHub Actions
 
 `.github/workflows/macos.yml` runs on every push. It:
