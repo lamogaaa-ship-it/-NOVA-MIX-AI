@@ -47,7 +47,11 @@ mkdir -p "$PKGROOT/Applications" "$PKGROOT/Library/LaunchAgents"
 cp -R "$APP" "$PKGROOT/Applications/"
 cp "$ROOT/scripts/macos/companion/ai.novamix.companion.plist" "$PKGROOT/Library/LaunchAgents/"
 pkgbuild --analyze --root "$PKGROOT" "$WORK/components.plist" >/dev/null
-/usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$WORK/components.plist" || true
+i=0
+while /usr/libexec/PlistBuddy -c "Print :$i" "$WORK/components.plist" >/dev/null 2>&1; do
+    /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$WORK/components.plist"
+    i=$((i + 1))
+done
 pkgbuild --root "$PKGROOT" --component-plist "$WORK/components.plist" --install-location / \
     --scripts "$ROOT/scripts/macos/companion/scripts" --identifier ai.novamix.companion \
     --version "$VERSION" "$OUT/NOVA-Companion-$VERSION-macOS-$(uname -m).pkg"

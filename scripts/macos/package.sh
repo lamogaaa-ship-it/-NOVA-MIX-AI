@@ -58,7 +58,12 @@ done
 component_pkg() {  # <stage subdir> <install location> <identifier> <pkg name> [scripts dir]
     local plist="$OUT_DIR/pkgs/$4.plist"
     pkgbuild --analyze --root "$STAGE/$1" "$plist" >/dev/null
-    /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$plist"
+    # every bundle pkgbuild recognised (it may list none, e.g. for .vst3) must not be relocatable
+    local i=0
+    while /usr/libexec/PlistBuddy -c "Print :$i" "$plist" >/dev/null 2>&1; do
+        /usr/libexec/PlistBuddy -c "Set :$i:BundleIsRelocatable false" "$plist"
+        i=$((i + 1))
+    done
     local extra=()
     [[ -n "${5:-}" ]] && extra=(--scripts "$5")
     pkgbuild --root "$STAGE/$1" --component-plist "$plist" --install-location "$2" \
