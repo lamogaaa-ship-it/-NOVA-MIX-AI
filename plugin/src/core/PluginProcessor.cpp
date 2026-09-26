@@ -266,6 +266,8 @@ void NovaAudioProcessor::processInternal (juce::AudioBuffer<float>& buffer, bool
     for (int b = 0; b < kNumDynBands; ++b)
         meters.dynCutDb[b].store (inst.dynCutDb[(size_t) b], std::memory_order_relaxed);
     meters.matchGainDb.store (monitor.getMatchGainDb(), std::memory_order_relaxed);
+    meters.dryLoudnessDb.store (monitor.getDryLoudnessDb() - 0.691f, std::memory_order_relaxed);
+    meters.wetLoudnessDb.store (monitor.getWetLoudnessDb() - 0.691f, std::memory_order_relaxed);
     chain.getStats().reset();   // realtime path does not accumulate statistics
     meters.blocksProcessed.fetch_add (1, std::memory_order_relaxed);
 

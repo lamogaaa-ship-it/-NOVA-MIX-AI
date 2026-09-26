@@ -22,6 +22,7 @@ struct RealtimeMeters
     std::atomic<float> riderGainDb { 0 }, compGrDb { 0 }, dessGrDb { 0 }, limGrDb { 0 };
     std::atomic<float> dynCutDb[kNumDynBands] {};
     std::atomic<float> matchGainDb { 0 };
+    std::atomic<float> dryLoudnessDb { -100 }, wetLoudnessDb { -100 };   // K-weighted, ~1.5 s integration
     std::atomic<int64_t> blocksProcessed { 0 };
     std::atomic<float> callbackLoad { 0 };     // fraction of the real-time budget used (0..1+)
     std::atomic<float> maxCallbackLoad { 0 };
@@ -85,6 +86,7 @@ public:
 
     AudioCapture& getCapture() noexcept { return capture; }
     const RealtimeMeters& getMeters() const noexcept { return meters; }
+    RealtimeMeters& getMetersForUi() noexcept { return meters; }   // UI resets peak holds via atomic exchange
     TransportSnapshot getTransport() const noexcept;
     double getPreparedSampleRate() const noexcept { return preparedRate.load(); }
     int getChainLatency() const noexcept { return chainLatency.load(); }
